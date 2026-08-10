@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 from src.local_data_loader import (
     list_instruments, load_kline, iter_all_instruments,
-    TIMEFRAME_LABELS, MTF_TIMEFRAMES,
+    TIMEFRAME_LABELS, pick_mtf_timeframes,
 )
 from src.density_analyzer import (
     find_dense_zones, classify_zones, multi_timeframe_zones,
@@ -76,7 +76,7 @@ def _kline_to_json(df, n_bars: int = 150) -> dict:
 
 
 def _analyze_df(df, window: int, n_zones: int, symbol: str, tf: str,
-                do_mtf: bool = True, mtf_df_week=None) -> dict:
+                do_mtf: bool = True, mtf_frames=None) -> dict:
     """对单个 DataFrame 执行完整分析，返回结果 dict（不含 K 线大对象，便于批量调用）"""
     if len(df) < window:
         raise ValueError(f"数据不足：仅 {len(df)} 条，需要 ≥ {window} 条")
@@ -96,11 +96,21 @@ def _analyze_df(df, window: int, n_zones: int, symbol: str, tf: str,
     risk_reward = calc_risk_reward(current_price, zones)
 
     mtf = None
-    if do_mtf:
+    mtf_labels = {}
+    mtf_order = []
+    if do_mtf and mtf_frames:
         try:
-            # 优先使用传入的周线数据；否则退化为只用日线 + window 仿造
-            mtf_raw = multi_timeframe_zones(df, mtf_df_week, None, n_zones=n_zones)
+            mtf_raw = multi_timeframe_zones(mtf_frames, n_zones=n_zones)
             mtf = {tf_key: [_zone_to_dict(z) for z in zs] for tf_key, zs in mtf_raw.items()}
+            # 构建 label 和 order（按周期从小到大排序，combined 单独放最前）
+            for fr in mtf_frames:
+                code = fr["tf"]
+                if code not in mtf_order:
+                    mtf_order.append(code)
+                mtf_labels[code] = TIMEFRAME_LABELS.get(code, code)
+            # 按 TF_ORDER 从小到大排序
+            mtf_order.sort(key=lambda c: config.TF_ORDER.index(c) if c in config.TF_ORDER else 999)
+            mtf_labels["combined"] = "综合"
         except Exception as e:
             mtf = {"error": f"多时间框架分析失败: {e}"}
 
@@ -131,6 +141,8 @@ def _analyze_df(df, window: int, n_zones: int, symbol: str, tf: str,
         "risk_score": risk_score,
         "risk_reward": risk_reward,
         "mtf": mtf,
+        "mtf_labels": mtf_labels,
+        "mtf_order": mtf_order,
     }
 
 
@@ -153,6 +165,22 @@ def api_data_dir():
     # GET
     path = get_data_dir()
     return jsonify({"path": path, "set": bool(path)})
+
+
+@app.route("/api/pick_dir")
+def api_pick_dir():
+    """弹出系统原生文件夹选择对话框，返回所选绝对路径（本地应用专用）"""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        path = filedialog.askdirectory(title="选择数据文件夹")
+        root.destroy()
+        return jsonify({"path": path or ""})
+    except Exception as e:
+        return jsonify({"error": f"无法打开文件夹选择器: {e}", "path": ""}), 500
 
 
 @app.route("/api/instruments")
@@ -202,18 +230,28 @@ def api_analyze():
     except Exception as e:
         return jsonify({"error": f"读取数据失败: {e}"}), 500
 
-    # 多时间框架：尝试加载周线（仅日线周期时使用）
-    mtf_df_week = None
-    if use_mtf and tf == "D1":
-        try:
-            mtf_df_week = load_kline(data_dir, symbol, "W1")
-        except Exception:
-            mtf_df_week = None
+    # 多时间框架：自适应选择邻居周期并加载
+    mtf_frames = None
+    if use_mtf:
+        instruments = list_instruments(data_dir)
+        available_tfs = instruments.get(symbol, [])
+        neighbors = pick_mtf_timeframes(tf, available_tfs)
+        mtf_frames = []
+        for ntf, nweight, nwin in neighbors:
+            if ntf == tf:
+                mtf_frames.append({"tf": ntf, "df": df, "weight": nweight, "window": nwin})
+            else:
+                try:
+                    ndf = load_kline(data_dir, symbol, ntf)
+                    if len(ndf) >= 3:
+                        mtf_frames.append({"tf": ntf, "df": ndf, "weight": nweight, "window": nwin})
+                except Exception:
+                    pass  # 该周期数据不存在或读取失败，跳过
 
     try:
         result = _analyze_df(df, window=window, n_zones=n_zones,
                              symbol=symbol, tf=tf,
-                             do_mtf=use_mtf, mtf_df_week=mtf_df_week)
+                             do_mtf=use_mtf, mtf_frames=mtf_frames)
         result["tf"] = tf
         result["tf_label"] = TIMEFRAME_LABELS.get(tf, tf)
         result["kline"] = _kline_to_json(df, n_bars=150)

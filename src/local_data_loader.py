@@ -37,16 +37,76 @@ TIMEFRAME_LABELS = {
 # 期货本地数据通常没有月线，用 W1 替代月线
 MTF_TIMEFRAMES = ["D1", "W1"]
 
-# 文件名解析：{品种}主连_{周期}.parquet
-_FILENAME_RE = re.compile(r"^(?P<symbol>.+?)主连_(?P<tf>[A-Z0-9]+)\.parquet$")
+# 周期层级（从小到大），与 config.TF_ORDER 保持一致
+_TF_ORDER = ["M1", "M3", "M5", "M15", "M30", "H1", "H2", "H4", "D1", "W1", "MN", "MN1"]
+
+# 每个周期默认分析窗口（K线数）
+_TF_WINDOW = {
+    "M1": 120, "M3": 120, "M5": 100, "M15": 80, "M30": 60,
+    "H1": 60, "H2": 50, "H4": 40, "D1": 40, "W1": 30, "MN": 12, "MN1": 12,
+}
+
+
+def pick_mtf_timeframes(main_tf: str, available_tfs: List[str],
+                        up: int = 2, down: int = 2) -> List[Tuple[str, float, int]]:
+    """
+    自适应选择多时间框架对比的邻居周期。
+
+    根据主周期在周期层级中的位置，向上（更大周期）和向下（更小周期）各取最多
+    up / down 个可用邻居。权重规则：
+      - 主周期：1.0
+      - 向上第 1 个：2.0，第 2 个：3.0（大周期结构更重要，权重递增）
+      - 向下：0.5（小周期用于精确入场，权重较低）
+
+    返回: [(tf_code, weight, window), ...]  第一个元素始终是主周期
+    """
+    available = set(available_tfs)
+    if main_tf not in _TF_ORDER:
+        return [(main_tf, 1.0, _TF_WINDOW.get(main_tf, 40))]
+    idx = _TF_ORDER.index(main_tf)
+
+    result = [(main_tf, 1.0, _TF_WINDOW.get(main_tf, 40))]
+
+    # 向上（更大周期），权重 2、3 递增
+    weight = 2.0
+    pos = idx + 1
+    count = 0
+    while pos < len(_TF_ORDER) and count < up:
+        t = _TF_ORDER[pos]
+        if t in available:
+            result.append((t, weight, _TF_WINDOW.get(t, 40)))
+            weight += 1.0
+            count += 1
+        pos += 1
+
+    # 向下（更小周期），权重 0.5
+    pos = idx - 1
+    count = 0
+    while pos >= 0 and count < down:
+        t = _TF_ORDER[pos]
+        if t in available:
+            result.append((t, 0.5, _TF_WINDOW.get(t, 40)))
+            count += 1
+        pos -= 1
+
+    return result
+
+# 文件名解析（同时兼容两种命名）：
+#   1. 期货本地格式：{品种}主连_{周期}.parquet   例如 螺纹钢主连_D1.parquet
+#   2. MT5 导出格式：{品种}_{周期}.parquet       例如 EURUSD_H1.parquet、US100.cash_H1.parquet
+_FILENAME_PATTERNS = [
+    re.compile(r"^(?P<symbol>.+?)主连_(?P<tf>[A-Z0-9]+)\.parquet$"),
+    re.compile(r"^(?P<symbol>.+)_(?P<tf>[A-Z0-9]+)\.parquet$"),
+]
 
 
 def _parse_filename(filename: str) -> Optional[Tuple[str, str]]:
     """从文件名解析 (品种, 周期)；不匹配返回 None"""
-    m = _FILENAME_RE.match(filename)
-    if not m:
-        return None
-    return m.group("symbol"), m.group("tf")
+    for pat in _FILENAME_PATTERNS:
+        m = pat.match(filename)
+        if m:
+            return m.group("symbol"), m.group("tf")
+    return None
 
 
 def list_instruments(data_dir: str) -> Dict[str, List[str]]:
@@ -76,7 +136,16 @@ def list_instruments(data_dir: str) -> Dict[str, List[str]]:
 
 
 def _filepath(data_dir: str, symbol: str, tf: str) -> str:
-    return os.path.join(data_dir, f"{symbol}主连_{tf}.parquet")
+    """返回实际存在的 parquet 文件路径（兼容两种命名）"""
+    # 优先期货格式 {symbol}主连_{tf}.parquet，回退 MT5 格式 {symbol}_{tf}.parquet
+    fut_path = os.path.join(data_dir, f"{symbol}主连_{tf}.parquet")
+    if os.path.exists(fut_path):
+        return fut_path
+    mt5_path = os.path.join(data_dir, f"{symbol}_{tf}.parquet")
+    if os.path.exists(mt5_path):
+        return mt5_path
+    # 都不存在：返回期货格式路径用于报错信息（保持原有报错文案）
+    return fut_path
 
 
 def load_kline(data_dir: str, symbol: str, tf: str) -> pd.DataFrame:

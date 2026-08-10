@@ -251,10 +251,10 @@
   <div class="hero">
     <div class="hero-row">
       <div class="field dir">
-        <label>数据文件夹（含 *主连_*.parquet）</label>
-        <input type="text" id="dirInput" placeholder="例如 D:\国内期货K线数据" value="D:\国内期货K线数据">
+        <label>数据文件夹（含 *_*.parquet 或 *主连_*.parquet）</label>
+        <input type="text" id="dirInput" placeholder="例如 D:\MT5_K线数据" value="">
       </div>
-      <button class="btn secondary" id="loadDirBtn">载入品种列表</button>
+      <button class="btn secondary" id="browseDirBtn">点击选择数据文件夹</button>
     </div>
     <div class="dir-status" id="dirStatus" style="display:none">
       <span>当前目录：</span><span class="lbl" id="dirLbl">—</span>
@@ -434,9 +434,9 @@ let tfLabels = {};
 let allRows = [];            // analyze_all 结果
 let currentSymbol = null;
 
-/* ---------- Dir load ---------- */
-$('#loadDirBtn').addEventListener('click', () => {
-  const path = $('#dirInput').value.trim();
+/* ---------- Load instruments from a given path ---------- */
+function loadDataDir(path){
+  path = (path || '').trim();
   if (!path) { showError('请输入数据文件夹路径'); return; }
   fetch('/api/data_dir', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -445,6 +445,25 @@ $('#loadDirBtn').addEventListener('click', () => {
     if (d.error) { showError(d.error); return; }
     loadInstruments();
   }).catch(e => showError('请求失败：'+e.message));
+}
+
+/* ---------- Browse folder (native picker via backend) ---------- */
+$('#browseDirBtn').addEventListener('click', () => {
+  const btn = $('#browseDirBtn');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = '选择中…';
+  fetch('/api/pick_dir').then(r => r.json()).then(d => {
+    btn.disabled = false; btn.textContent = orig;
+    if (d.error) { showError(d.error); return; }
+    if (d.path) {
+      $('#dirInput').value = d.path;
+      loadDataDir(d.path);   // 选择后自动载入品种列表
+    }
+  }).catch(e => { btn.disabled = false; btn.textContent = orig; showError('选择文件夹失败：'+e.message); });
+});
+
+/* ---------- 手动输入路径后按回车也可载入 ---------- */
+$('#dirInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') loadDataDir($('#dirInput').value);
 });
 
 function loadInstruments(){
@@ -618,7 +637,7 @@ function renderDetail(d){
   $('#kBars').textContent = d.data_bars + ' 条';
 
   drawMainChart(d); drawDensityChart(d);
-  renderZoneTable(d.zones); renderAlerts(d.alerts); renderMTF(d.mtf);
+  renderZoneTable(d.zones); renderAlerts(d.alerts); renderMTF(d.mtf, d.mtf_labels, d.mtf_order);
 }
 
 function renderGauge(score){
@@ -730,14 +749,15 @@ function renderAlerts(alerts){
   </div>`).join('');
 }
 
-function renderMTF(mtf){
+function renderMTF(mtf, labels, order){
   const wrap = $('#mtfWrap');
   if (!mtf || mtf.error){ wrap.style.display='none'; return; }
-  const tfs = ['combined','day','week','month'];
-  const labels = {combined:'综合',day:'日线',week:'周线',month:'月线'};
+  // Tab 顺序：综合在前，其余按后端返回的 order（周期从小到大）
+  const tabs_list = ['combined'].concat(order || []);
+  const lab = labels || {};
   const tabs = $('#mtfTabs');
-  const available = tfs.filter(t => mtf[t] !== undefined);
-  tabs.innerHTML = available.map((t,i)=>`<span class="mtf-tab ${i===0?'active':''}" data-tf="${t}">${labels[t]||t}</span>`).join('');
+  const available = tabs_list.filter(t => mtf[t] !== undefined);
+  tabs.innerHTML = available.map((t,i)=>`<span class="mtf-tab ${i===0?'active':''}" data-tf="${t}">${lab[t]||t}</span>`).join('');
   tabs.querySelectorAll('.mtf-tab').forEach(el=>el.addEventListener('click',()=>{
     tabs.querySelectorAll('.mtf-tab').forEach(x=>x.classList.remove('active'));
     el.classList.add('active'); fillMTFTable(mtf[el.dataset.tf]);

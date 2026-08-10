@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import (
     DEFAULT_WINDOW, DEFAULT_BINS, DEFAULT_N_ZONES,
     MIN_ZONE_PROMINENCE, VOLUME_WEIGHTED, PRICE_THRESHOLD_PCT,
-    TIMEFRAMES,
+    TIMEFRAMES, TF_ORDER,
 )
 
 
@@ -231,63 +231,60 @@ def classify_zones(zones: List[ZoneInfo], current_price: float) -> List[ZoneInfo
 
 
 def multi_timeframe_zones(
-    df_day: pd.DataFrame,
-    df_week: Optional[pd.DataFrame] = None,
-    df_month: Optional[pd.DataFrame] = None,
+    frames: List[Dict],
     n_zones: int = DEFAULT_N_ZONES,
 ) -> Dict[str, List[ZoneInfo]]:
     """
-    多时间框架密集区分析
+    多时间框架密集区分析（自适应版）
 
-    分别对日/周/月线计算密集区，汇总结果。
-    大周期权重加倍（周x2，月x3）。
+    frames: [{"tf": "H1", "df": df, "weight": 1.0, "window": 60}, ...]
+            第一个 frame 为主周期，用于确定 current_price。
+            weight: 大周期权重更高（2/3），小周期较低（0.5）。
+            window: 该周期的分析窗口（K线数）。
 
-    返回:
-        {'day': [...], 'week': [...], 'month': [...], 'combined': [...]}
+    返回: {tf_code: [zones], ..., "combined": [zones]}
+          combined 为所有周期加权合并后的密集区。
     """
+    if not frames:
+        return {"combined": []}
+
     result: Dict[str, List[ZoneInfo]] = {}
-    current_price = float(df_day["close"].iloc[-1])
+    current_price = float(frames[0]["df"]["close"].iloc[-1])
+    total_weight = 0.0
+    # (low, high) -> [center, weighted_strength]
+    weighted: Dict[Tuple[float, float], List[float]] = {}
 
-    # 日线
-    dz = find_dense_zones(df_day, window=TIMEFRAMES["day"]["window"], n_zones=n_zones)
-    classify_zones(dz, current_price)
-    result["day"] = dz
+    for fr in frames:
+        tf_code = fr["tf"]
+        df = fr["df"]
+        w = fr.get("weight", 1.0)
+        win = fr.get("window", DEFAULT_WINDOW)
 
-    # 周线
-    if df_week is not None and len(df_week) >= 3:
-        wz = find_dense_zones(df_week, window=TIMEFRAMES["week"]["window"], n_zones=n_zones)
-        classify_zones(wz, current_price)
-        result["week"] = wz
-    else:
-        result["week"] = []
+        if df is None or len(df) < 3:
+            result[tf_code] = []
+            continue
 
-    # 月线
-    if df_month is not None and len(df_month) >= 3:
-        mz = find_dense_zones(df_month, window=TIMEFRAMES["month"]["window"], n_zones=n_zones)
-        classify_zones(mz, current_price)
-        result["month"] = mz
-    else:
-        result["month"] = []
+        zs = find_dense_zones(df, window=min(win, len(df)), n_zones=n_zones)
+        classify_zones(zs, current_price)
+        result[tf_code] = zs
+        total_weight += w
 
-    # 汇总：合并所有时间框架，大周期权重加倍
-    weighted = {}
-    for z in dz:
-        weighted[(z.low, z.high)] = [z.center, z.strength * 1.0]
-    for z in (result.get("week") or []):
-        key = (z.low, z.high)
-        weighted[key] = [z.center, weighted.get(key, [z.center, 0])[1] + z.strength * 2.0]
-    for z in (result.get("month") or []):
-        key = (z.low, z.high)
-        weighted[key] = [z.center, weighted.get(key, [z.center, 0])[1] + z.strength * 3.0]
+        for z in zs:
+            key = (z.low, z.high)
+            if key not in weighted:
+                weighted[key] = [z.center, 0.0]
+            weighted[key][1] += z.strength * w
 
+    # 归一化（按实际使用的总权重）并按强度排序
+    divisor = total_weight if total_weight > 0 else 1.0
     combined = []
-    for (lo, hi), (ctr, w) in sorted(weighted.items(), key=lambda x: -x[1][1]):
+    for (lo, hi), (ctr, w_str) in sorted(weighted.items(), key=lambda x: -x[1][1]):
         if len(combined) >= n_zones:
             break
         dist_pct = (ctr - current_price) / current_price * 100
         combined.append(ZoneInfo(
             center=round(ctr, 2), low=round(lo, 2), high=round(hi, 2),
-            strength=round(w / 6.0, 4),
+            strength=round(w_str / divisor, 4),
             zone_type="support" if dist_pct < 0 else "resistance",
             distance_pct=round(dist_pct, 2),
         ))
