@@ -3,33 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>支撑/阻力位智能检测 · DENSITY</title>
+<title>支撑/阻力位智能检测 · 期货本地数据</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700;9..144,900&family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   :root{
-    --bg:#0b0d12;
-    --bg-2:#11141c;
-    --panel:rgba(255,255,255,0.035);
-    --panel-2:rgba(255,255,255,0.05);
-    --border:rgba(255,255,255,0.07);
-    --border-strong:rgba(255,255,255,0.13);
-    --text:#ece9e1;
-    --text-dim:#9aa0ad;
-    --text-faint:#6a7080;
-    --gold:#e3b066;
-    --gold-dim:rgba(227,176,102,0.16);
-    --support:#4ade80;
-    --support-bg:rgba(74,222,128,0.13);
-    --resistance:#f87171;
-    --resistance-bg:rgba(248,113,113,0.13);
-    --danger:#ff6b6b;
-    --warn:#fbbf24;
-    --buy:#4ade80;
-    --hold:#fbbf24;
-    --sell:#f87171;
+    --bg:#0b0d12; --bg-2:#11141c;
+    --panel:rgba(255,255,255,0.035); --panel-2:rgba(255,255,255,0.05);
+    --border:rgba(255,255,255,0.07); --border-strong:rgba(255,255,255,0.13);
+    --text:#ece9e1; --text-dim:#9aa0ad; --text-faint:#6a7080;
+    --gold:#e3b066; --gold-dim:rgba(227,176,102,0.16);
+    --support:#4ade80; --support-bg:rgba(74,222,128,0.13);
+    --resistance:#f87171; --resistance-bg:rgba(248,113,113,0.13);
+    --danger:#ff6b6b; --warn:#fbbf24;
+    --buy:#4ade80; --hold:#fbbf24; --sell:#f87171;
     --font-display:'Fraunces',serif;
     --font-ui:'Hanken Grotesk',system-ui,sans-serif;
     --font-mono:'JetBrains Mono',ui-monospace,monospace;
@@ -37,23 +26,17 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
-    font-family:var(--font-ui);
-    color:var(--text);
+    font-family:var(--font-ui); color:var(--text);
     background:
       radial-gradient(1100px 600px at 12% -8%, rgba(227,176,102,0.10), transparent 60%),
       radial-gradient(900px 500px at 100% 0%, rgba(74,222,128,0.05), transparent 55%),
       linear-gradient(180deg,var(--bg) 0%, var(--bg-2) 100%);
-    background-attachment:fixed;
-    min-height:100vh;
-    line-height:1.5;
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
+    background-attachment:fixed; min-height:100vh; line-height:1.5;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
-  /* 细网格 + 噪点纹理 */
   body::before{
     content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.022) 1px,transparent 1px),
+    background-image:linear-gradient(rgba(255,255,255,0.022) 1px,transparent 1px),
       linear-gradient(90deg,rgba(255,255,255,0.022) 1px,transparent 1px);
     background-size:48px 48px;
     mask-image:radial-gradient(circle at 50% 30%, #000 0%, transparent 90%);
@@ -62,12 +45,11 @@
     content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.5;
     background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  .wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:32px 28px 80px}
+  .wrap{position:relative;z-index:1;max-width:1340px;margin:0 auto;padding:32px 28px 80px}
 
-  /* ========== Header ========== */
   header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:34px;flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:14px}
-  .mark{width:42px;height:42px;flex:none;position:relative}
+  .mark{width:42px;height:42px;flex:none}
   .mark svg{width:100%;height:100%}
   .brand-text h1{font-family:var(--font-display);font-weight:900;font-size:30px;letter-spacing:-0.02em;line-height:1}
   .brand-text h1 em{font-style:italic;font-weight:300;color:var(--gold)}
@@ -75,56 +57,37 @@
   .head-meta{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-faint);font-family:var(--font-mono)}
   .pill{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1px solid var(--border);border-radius:999px;background:var(--panel)}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--support);box-shadow:0 0 10px var(--support);animation:pulse 2s infinite}
+  .dot.off{background:var(--text-faint);box-shadow:none;animation:none}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
 
-  /* ========== Control hero ========== */
   .hero{
-    border:1px solid var(--border);
-    background:linear-gradient(180deg,var(--panel-2),var(--panel));
-    border-radius:20px;
-    padding:26px 28px;
-    margin-bottom:28px;
-    backdrop-filter:blur(8px);
-    position:relative;overflow:hidden;
+    border:1px solid var(--border);background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border-radius:20px;padding:24px 26px;margin-bottom:24px;backdrop-filter:blur(8px);position:relative;overflow:hidden;
   }
-  .hero::before{
-    content:"";position:absolute;top:-1px;left:24px;right:24px;height:1px;
-    background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.6;
-  }
-  .hero-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+  .hero::before{content:"";position:absolute;top:-1px;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.6}
+  .hero-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
   .field{display:flex;flex-direction:column;gap:7px}
   .field label{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);font-weight:600}
-  .field.code{flex:1 1 280px;position:relative}
-  .field.code input{width:100%}
-  .ac{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:280px;overflow:auto;
-      background:#161a23;border:1px solid var(--border-strong);border-radius:12px;z-index:30;
-      box-shadow:0 18px 40px rgba(0,0,0,0.5);display:none}
-  .ac.open{display:block}
-  .ac-item{padding:9px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border)}
-  .ac-item:last-child{border-bottom:0}
-  .ac-item:hover,.ac-item.active{background:var(--gold-dim)}
-  .ac-item .c{font-family:var(--font-mono);color:var(--gold);font-size:13px}
-  .ac-item .n{color:var(--text-dim);font-size:13px}
-
+  .field.dir{flex:1 1 360px}
+  .field.dir input{width:100%}
+  .field.sel{flex:1 1 200px}
   input[type=text],select{
-    background:#0e1118;border:1px solid var(--border-strong);border-radius:11px;
-    color:var(--text);padding:13px 15px;font-family:var(--font-mono);font-size:15px;
-    transition:border-color .2s, box-shadow .2s;outline:none;
+    background:#0e1118;border:1px solid var(--border-strong);border-radius:11px;color:var(--text);
+    padding:12px 15px;font-family:var(--font-mono);font-size:14.5px;transition:border-color .2s, box-shadow .2s;outline:none;
   }
   input[type=text]:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-dim)}
   select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239aa0ad' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer}
-  .btn-go{
-    border:0;cursor:pointer;border-radius:11px;padding:13px 30px;
-    font-family:var(--font-ui);font-weight:600;font-size:15px;letter-spacing:0.02em;
-    color:#1a1407;background:linear-gradient(135deg,#f0c074,#e3b066);
-    display:inline-flex;align-items:center;gap:9px;transition:transform .15s, box-shadow .2s, filter .2s;
-    box-shadow:0 6px 22px rgba(227,176,102,0.28);
+    background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer;max-width:100%}
+  .btn{
+    border:0;cursor:pointer;border-radius:11px;padding:12px 22px;font-family:var(--font-ui);font-weight:600;font-size:14.5px;
+    display:inline-flex;align-items:center;gap:8px;transition:transform .15s, box-shadow .2s, filter .2s;
   }
-  .btn-go:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 10px 30px rgba(227,176,102,0.4)}
-  .btn-go:active{transform:translateY(0)}
-  .btn-go[disabled]{opacity:0.6;cursor:not-allowed;transform:none}
-
+  .btn.primary{color:#1a1407;background:linear-gradient(135deg,#f0c074,#e3b066);box-shadow:0 6px 22px rgba(227,176,102,0.28)}
+  .btn.primary:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 10px 30px rgba(227,176,102,0.4)}
+  .btn.primary[disabled]{opacity:0.6;cursor:not-allowed;transform:none}
+  .btn.secondary{color:var(--text);background:var(--panel-2);border:1px solid var(--border-strong)}
+  .btn.secondary:hover{border-color:var(--gold);color:var(--gold)}
+  .btn.secondary[disabled]{opacity:0.5;cursor:not-allowed}
   .toggle{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
   .toggle input{display:none}
   .track{width:42px;height:23px;border-radius:999px;background:#0e1118;border:1px solid var(--border-strong);position:relative;transition:background .2s}
@@ -132,39 +95,58 @@
   .toggle input:checked + .track{background:var(--gold-dim);border-color:var(--gold)}
   .toggle input:checked + .track::after{transform:translateX(19px);background:var(--gold)}
 
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
-  .chips .lbl{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-right:4px}
-  .chip{font-family:var(--font-mono);font-size:12.5px;padding:6px 12px;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--text-dim);cursor:pointer;transition:all .18s}
-  .chip:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
-  .chip b{color:var(--text);font-weight:500;margin-right:6px}
+  .dir-status{margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--text-dim)}
+  .dir-status .lbl{font-family:var(--font-mono);color:var(--gold);word-break:break-all}
 
-  /* ========== Empty / loading / error ========== */
-  .state{text-align:center;padding:70px 20px;color:var(--text-faint)}
-  .state .big{font-family:var(--font-display);font-size:46px;font-weight:300;color:var(--text-dim);letter-spacing:-0.02em;margin-bottom:10px}
+  .state{text-align:center;padding:60px 20px;color:var(--text-faint)}
+  .state .big{font-family:var(--font-display);font-size:42px;font-weight:300;color:var(--text-dim);letter-spacing:-0.02em;margin-bottom:10px;line-height:1.2}
   .state .big em{font-style:italic;color:var(--gold)}
   .state .sub{font-size:13.5px;letter-spacing:0.05em}
   .spinner{width:34px;height:34px;border:2.5px solid var(--border-strong);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
   @keyframes spin{to{transform:rotate(360deg)}}
   .err{color:var(--resistance);border:1px solid rgba(248,113,113,0.3);background:rgba(248,113,113,0.08);padding:14px 18px;border-radius:12px;font-size:14px;text-align:center}
 
-  /* ========== Results ========== */
-  #results{display:none}
-  #results.show{display:block;animation:rise .5s ease}
-  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* Summary table (analyze all) */
+  .summary-wrap{margin-bottom:24px}
+  .summary-head{display:flex;align-items:baseline;gap:12px;margin:8px 0 12px;flex-wrap:wrap}
+  .summary-head h2{font-family:var(--font-display);font-weight:700;font-size:21px;letter-spacing:-0.01em}
+  .summary-head .num{font-family:var(--font-mono);font-size:12px;color:var(--gold)}
+  .summary-head .line{flex:1;height:1px;background:linear-gradient(90deg,var(--border-strong),transparent);min-width:60px}
+  .summary-meta{font-family:var(--font-mono);font-size:12px;color:var(--text-faint)}
+  .table-card{border:1px solid var(--border);background:var(--panel);border-radius:16px;overflow:hidden}
+  .table-scroll{overflow-x:auto;max-height:560px;overflow-y:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{position:sticky;top:0;background:#161a23;text-align:left;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);font-weight:600;padding:11px 14px;border-bottom:1px solid var(--border-strong);z-index:2}
+  tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;white-space:nowrap}
+  tbody td.num{font-family:var(--font-mono)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--panel-2)}
+  tbody tr.active{background:var(--gold-dim)}
+  .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:7px;font-size:11.5px;font-weight:600}
+  .tag.support{color:var(--support);background:var(--support-bg)}
+  .tag.resistance{color:var(--resistance);background:var(--resistance-bg)}
+  .tag.q-优秀{color:#4ade80;background:rgba(74,222,128,0.13)}
+  .tag.q-良好{color:#a3e635;background:rgba(163,230,53,0.13)}
+  .tag.q-一般{color:var(--warn);background:rgba(251,191,36,0.13)}
+  .tag.q-较差{color:var(--resistance);background:var(--resistance-bg)}
+  .chg.up{color:var(--support)}
+  .chg.down{color:var(--resistance)}
 
+  /* Detail panel */
+  #detailWrap{display:none}
+  #detailWrap.show{display:block;animation:rise .5s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   .cards{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:18px}
   @media(max-width:980px){.cards{grid-template-columns:1fr}}
   .card{border:1px solid var(--border);background:var(--panel);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden}
   .card .k{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);font-weight:600;margin-bottom:10px}
-  .stock-card .name{font-family:var(--font-display);font-size:25px;font-weight:700;letter-spacing:-0.01em;line-height:1.1}
-  .stock-card .code{font-family:var(--font-mono);font-size:13px;color:var(--gold);margin-top:3px;letter-spacing:0.04em}
-  .stock-card .price{font-family:var(--font-mono);font-size:38px;font-weight:600;margin-top:14px;letter-spacing:-0.01em;font-variant-numeric:tabular-nums}
-  .chg{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:14px;padding:3px 9px;border-radius:7px;margin-left:8px;font-weight:500}
-  .chg.up{color:var(--support);background:var(--support-bg)}
-  .chg.down{color:var(--resistance);background:var(--resistance-bg)}
+  .stock-card .name{font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:-0.01em;line-height:1.1}
+  .stock-card .code{font-family:var(--font-mono);font-size:13px;color:var(--gold);margin-top:3px}
+  .stock-card .price{font-family:var(--font-mono);font-size:36px;font-weight:600;margin-top:14px;letter-spacing:-0.01em;font-variant-numeric:tabular-nums}
+  .chg-badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:14px;padding:3px 9px;border-radius:7px;margin-left:8px;font-weight:500}
+  .chg-badge.up{color:var(--support);background:var(--support-bg)}
+  .chg-badge.down{color:var(--resistance);background:var(--resistance-bg)}
   .meta-line{margin-top:12px;font-size:12px;color:var(--text-faint);font-family:var(--font-mono)}
-
-  /* risk gauge */
   .risk-card{display:flex;flex-direction:column}
   .risk-top{display:flex;align-items:center;gap:18px}
   .gauge{position:relative;width:120px;height:68px;flex:none}
@@ -181,7 +163,6 @@
   .rr-cell.profit .v{color:var(--support)}
   .rr-cell.loss .v{color:var(--resistance)}
   .rr-cell.ratio .v{color:var(--gold)}
-
   .stat-card .stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--border)}
   .stat-card .stat-row:last-child{border-bottom:0}
   .stat-card .sl{font-size:12.5px;color:var(--text-dim)}
@@ -189,7 +170,6 @@
   .stat-card .sv.s{color:var(--support)}
   .stat-card .sv.r{color:var(--resistance)}
 
-  /* chart */
   .chart-card{border:1px solid var(--border);background:var(--panel);border-radius:16px;padding:18px;margin-bottom:16px}
   .chart-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
   .chart-title h3{font-family:var(--font-display);font-weight:700;font-size:18px}
@@ -199,22 +179,16 @@
   .swatch{width:12px;height:8px;border-radius:2px}
   #mainChart,#densityChart{width:100%}
 
-  /* zone table */
-  .zone-card{margin-bottom:16px}
-  table{width:100%;border-collapse:collapse;font-size:13.5px}
-  thead th{text-align:left;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--border-strong)}
-  tbody td{padding:12px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
-  tbody td.num{font-family:var(--font-mono);font-weight:500}
-  tbody tr:hover{background:var(--panel-2)}
-  .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:7px;font-size:12px;font-weight:600;font-family:var(--font-ui)}
-  .tag.support{color:var(--support);background:var(--support-bg)}
-  .tag.resistance{color:var(--resistance);background:var(--resistance-bg)}
+  table.detail{font-size:13.5px}
+  table.detail thead th{position:static}
+  table.detail tbody td{white-space:normal;padding:12px}
+  table.detail tbody tr{cursor:default}
+  table.detail tbody tr:hover{background:var(--panel-2)}
   .bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden;min-width:70px}
   .bar > i{display:block;height:100%;border-radius:3px}
   .bar > i.s{background:linear-gradient(90deg,#22c55e,#4ade80)}
   .bar > i.r{background:linear-gradient(90deg,#ef4444,#f87171)}
 
-  /* alerts */
   .alerts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:6px}
   .alert{border:1px solid var(--border);background:var(--panel);border-radius:14px;padding:16px 17px;border-left-width:3px}
   .alert.danger{border-left-color:var(--danger)}
@@ -236,18 +210,17 @@
   .alert .advice{font-size:12.5px;color:var(--text-dim);line-height:1.5;border-top:1px dashed var(--border);padding-top:9px}
   .alert .hist{margin-top:8px;font-size:11.5px;color:var(--gold);font-family:var(--font-mono)}
 
-  /* mtf */
-  .mtf-card{margin-top:6px}
   .mtf-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
   .mtf-tab{padding:7px 15px;border:1px solid var(--border);border-radius:9px;background:var(--panel);font-size:13px;color:var(--text-dim);cursor:pointer;transition:all .18s}
   .mtf-tab.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
 
   .disclaimer{margin-top:30px;text-align:center;font-size:11.5px;color:var(--text-faint);line-height:1.6;max-width:760px;margin-left:auto;margin-right:auto}
-
   .section-head{display:flex;align-items:baseline;gap:12px;margin:26px 0 12px}
   .section-head h2{font-family:var(--font-display);font-weight:700;font-size:21px;letter-spacing:-0.01em}
   .section-head .num{font-family:var(--font-mono);font-size:12px;color:var(--gold)}
   .section-head .line{flex:1;height:1px;background:linear-gradient(90deg,var(--border-strong),transparent)}
+  .progress-bar{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-top:10px}
+  .progress-bar > i{display:block;height:100%;background:var(--gold);width:0;transition:width .3s}
 </style>
 </head>
 <body>
@@ -266,33 +239,52 @@
       </div>
       <div class="brand-text">
         <h1>DENSITY<em>·</em>支撑阻力</h1>
-        <p>成交密集区智能识别引擎</p>
+        <p>期货本地数据 · 密集区识别引擎</p>
       </div>
     </div>
     <div class="head-meta">
-      <span class="pill"><span class="dot"></span> baostock · 前复权</span>
+      <span class="pill" id="dirPill"><span class="dot off" id="dirDot"></span> <span id="dirPillText">未选择数据文件夹</span></span>
     </div>
   </header>
 
-  <!-- ===== Control hero ===== -->
+  <!-- ===== Data dir hero ===== -->
   <div class="hero">
     <div class="hero-row">
-      <div class="field code">
-        <label>股票代码 / 名称</label>
-        <input type="text" id="codeInput" placeholder="输入代码或名称，如 600519 / 茅台" autocomplete="off">
-        <div class="ac" id="ac"></div>
+      <div class="field dir">
+        <label>数据文件夹（含 *主连_*.parquet）</label>
+        <input type="text" id="dirInput" placeholder="例如 D:\国内期货K线数据" value="D:\国内期货K线数据">
       </div>
-      <div class="field">
-        <label>分析窗口 (交易日)</label>
+      <button class="btn secondary" id="loadDirBtn">载入品种列表</button>
+    </div>
+    <div class="dir-status" id="dirStatus" style="display:none">
+      <span>当前目录：</span><span class="lbl" id="dirLbl">—</span>
+      <span>·</span><span>品种数：<span class="lbl" id="instCount">—</span></span>
+    </div>
+  </div>
+
+  <!-- ===== Analyze controls ===== -->
+  <div class="hero" id="analyzeHero" style="display:none">
+    <div class="hero-row">
+      <div class="field sel">
+        <label>品种</label>
+        <select id="symbolSel"><option value="">— 选择品种 —</option></select>
+      </div>
+      <div class="field sel">
+        <label>周期</label>
+        <select id="tfSel"></select>
+      </div>
+      <div class="field sel">
+        <label>分析窗口 (K线数)</label>
         <select id="windowSel">
-          <option value="20">20 日</option>
-          <option value="40" selected>40 日</option>
-          <option value="60">60 日</option>
-          <option value="90">90 日</option>
-          <option value="120">120 日</option>
+          <option value="20">20</option>
+          <option value="40" selected>40</option>
+          <option value="60">60</option>
+          <option value="90">90</option>
+          <option value="120">120</option>
+          <option value="250">250</option>
         </select>
       </div>
-      <div class="field">
+      <div class="field sel">
         <label>密集区数量</label>
         <select id="zonesSel">
           <option value="2">2</option>
@@ -306,46 +298,57 @@
         <span class="track"></span>
         <span style="font-size:12.5px;color:var(--text-dim)">多时间框架</span>
       </label>
-      <button class="btn-go" id="goBtn">检测 →</button>
-    </div>
-    <div class="chips">
-      <span class="lbl">快速示例</span>
-      <span class="chip" data-code="600519"><b>600519</b>贵州茅台</span>
-      <span class="chip" data-code="000001"><b>000001</b>平安银行</span>
-      <span class="chip" data-code="300750"><b>300750</b>宁德时代</span>
-      <span class="chip" data-code="601318"><b>601318</b>中国平安</span>
-      <span class="chip" data-code="000858"><b>000858</b>五粮液</span>
+      <button class="btn primary" id="analyzeBtn">分析单品种</button>
+      <button class="btn primary" id="analyzeAllBtn" style="background:linear-gradient(135deg,#4ade80,#22c55e);color:#06280f">分析全部</button>
     </div>
   </div>
 
   <!-- ===== Empty state ===== -->
   <div class="state" id="emptyState">
     <div class="big">价格在<em>哪里</em>停下，<br>就在哪里读懂市场。</div>
-    <div class="sub">输入 A 股代码，识别成交密集的支撑与压力区</div>
+    <div class="sub">载入数据文件夹后，识别全部期货品种的支撑与压力密集区</div>
   </div>
 
-  <!-- ===== Loading ===== -->
   <div class="state" id="loadingState" style="display:none">
     <div class="spinner"></div>
-    <div class="sub" id="loadingText">正在获取行情数据…</div>
+    <div class="sub" id="loadingText">正在加载…</div>
+    <div class="progress-bar" style="max-width:400px;margin:14px auto 0"><i id="progBar"></i></div>
   </div>
 
-  <!-- ===== Error ===== -->
   <div id="errorState" style="display:none"><div class="err" id="errorText"></div></div>
 
-  <!-- ===== Results ===== -->
-  <div id="results">
+  <!-- ===== All summary ===== -->
+  <div id="summaryWrap" class="summary-wrap" style="display:none">
+    <div class="summary-head">
+      <span class="num">00</span><h2>全部品种汇总</h2><span class="line"></span>
+      <span class="summary-meta" id="summaryMeta"></span>
+    </div>
+    <div class="table-card">
+      <div class="table-scroll">
+        <table id="summaryTable">
+          <thead><tr>
+            <th>#</th><th>品种</th><th>现价</th><th>涨跌%</th>
+            <th>最近支撑</th><th>支撑距%</th>
+            <th>最近压力</th><th>压力距%</th>
+            <th>盈亏比</th><th>评级</th><th>密集区</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-faint);margin-top:8px;font-family:var(--font-mono)">点击表格行查看该品种详细分析</div>
+  </div>
 
+  <!-- ===== Detail ===== -->
+  <div id="detailWrap">
     <div class="cards">
-      <!-- Stock -->
       <div class="card stock-card">
         <div class="k">标的</div>
         <div class="name" id="sName">—</div>
         <div class="code" id="sCode">—</div>
-        <div class="price"><span id="sPrice">—</span><span class="chg" id="sChg">—</span></div>
+        <div class="price"><span id="sPrice">—</span><span class="chg-badge" id="sChg">—</span></div>
         <div class="meta-line" id="sMeta"></div>
       </div>
-      <!-- Risk -->
       <div class="card risk-card">
         <div class="k">综合评估</div>
         <div class="risk-top">
@@ -358,7 +361,6 @@
           <div class="rr-cell ratio"><div class="v" id="rRatio">—</div><div class="l">盈亏比</div></div>
         </div>
       </div>
-      <!-- Quick stats -->
       <div class="card stat-card">
         <div class="k">关键位</div>
         <div class="stat-row"><span class="sl">最近支撑</span><span class="sv s" id="kSupport">—</span></div>
@@ -368,7 +370,6 @@
       </div>
     </div>
 
-    <!-- Main chart -->
     <div class="chart-card">
       <div class="chart-title">
         <h3>价格走势 · 密集区叠加</h3>
@@ -382,7 +383,6 @@
       <div id="mainChart"></div>
     </div>
 
-    <!-- Density -->
     <div class="chart-card">
       <div class="chart-title">
         <h3>成交密度剖面</h3>
@@ -391,10 +391,9 @@
       <div id="densityChart"></div>
     </div>
 
-    <!-- Zone table -->
     <div class="section-head"><span class="num">01</span><h2>密集区明细</h2><span class="line"></span></div>
-    <div class="chart-card zone-card">
-      <table id="zoneTable">
+    <div class="chart-card">
+      <table class="detail" id="zoneTable">
         <thead><tr>
           <th>类型</th><th>中心价</th><th>区间</th><th>强度</th>
           <th>距现价</th><th>重叠K线</th><th>成交占比</th>
@@ -403,16 +402,14 @@
       </table>
     </div>
 
-    <!-- Alerts -->
     <div class="section-head"><span class="num">02</span><h2>触及预警</h2><span class="line"></span></div>
     <div class="alerts-grid" id="alertsGrid"></div>
 
-    <!-- MTF -->
     <div id="mtfWrap" style="display:none">
       <div class="section-head"><span class="num">03</span><h2>多时间框架对比</h2><span class="line"></span></div>
-      <div class="chart-card mtf-card">
+      <div class="chart-card">
         <div class="mtf-tabs" id="mtfTabs"></div>
-        <table id="mtfTable">
+        <table class="detail" id="mtfTable">
           <thead><tr>
             <th>类型</th><th>中心价</th><th>区间</th><th>强度</th><th>距现价</th>
           </tr></thead>
@@ -422,7 +419,7 @@
     </div>
 
     <div class="disclaimer">
-      ⚠ 以上内容基于公开行情数据由算法自动生成，仅供技术分析参考，不构成任何投资建议。市场有风险，决策需谨慎。
+      ⚠ 以上内容基于本地历史行情数据由算法自动生成，仅供技术分析参考，不构成任何投资建议。市场有风险，决策需谨慎。
     </div>
   </div>
 
@@ -432,110 +429,179 @@
 const $ = s => document.querySelector(s);
 const fmt = (n, d=2) => n==null||isNaN(n) ? '—' : Number(n).toLocaleString('zh-CN',{minimumFractionDigits:d,maximumFractionDigits:d});
 
-let lastData = null;
-let acIndex = -1;
+let instruments = [];        // [{symbol, timeframes:[]}]
+let tfLabels = {};
+let allRows = [];            // analyze_all 结果
+let currentSymbol = null;
 
-/* ---------- Autocomplete ---------- */
-const codeInput = $('#codeInput'), ac = $('#ac');
-let acTimer = null;
-codeInput.addEventListener('input', () => {
-  const q = codeInput.value.trim();
-  ac.classList.remove('open'); ac.innerHTML=''; acIndex=-1;
-  clearTimeout(acTimer);
-  if (!q || q.length < 1) return;
-  acTimer = setTimeout(() => {
-    fetch('/api/stock_search?q=' + encodeURIComponent(q))
-      .then(r => r.json()).then(d => {
-        if (!d.results || !d.results.length) return;
-        ac.innerHTML = d.results.map(r =>
-          `<div class="ac-item" data-code="${r.code}"><span class="c">${r.short}</span><span class="n">${r.name}</span></div>`).join('');
-        ac.classList.add('open');
-        ac.querySelectorAll('.ac-item').forEach(el => {
-          el.addEventListener('click', () => { codeInput.value = el.dataset.code; ac.classList.remove('open'); runAnalyze(); });
-        });
-      }).catch(()=>{});
-  }, 220);
+/* ---------- Dir load ---------- */
+$('#loadDirBtn').addEventListener('click', () => {
+  const path = $('#dirInput').value.trim();
+  if (!path) { showError('请输入数据文件夹路径'); return; }
+  fetch('/api/data_dir', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({path})
+  }).then(r => r.json()).then(d => {
+    if (d.error) { showError(d.error); return; }
+    loadInstruments();
+  }).catch(e => showError('请求失败：'+e.message));
 });
-codeInput.addEventListener('keydown', e => {
-  const items = ac.querySelectorAll('.ac-item');
-  if (!ac.classList.contains('open') || !items.length) {
-    if (e.key === 'Enter') runAnalyze();
-    return;
-  }
-  if (e.key === 'ArrowDown'){ acIndex = (acIndex+1) % items.length; }
-  else if (e.key === 'ArrowUp'){ acIndex = (acIndex-1+items.length) % items.length; }
-  else if (e.key === 'Enter'){ if (acIndex>=0){ codeInput.value = items[acIndex].dataset.code; } ac.classList.remove('open'); runAnalyze(); return; }
-  else if (e.key === 'Escape'){ ac.classList.remove('open'); return; }
-  items.forEach((it,i)=>it.classList.toggle('active', i===acIndex));
-});
-document.addEventListener('click', e => { if (!e.target.closest('.field.code')) ac.classList.remove('open'); });
 
-/* ---------- Chips ---------- */
-document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { codeInput.value = c.dataset.code; runAnalyze(); }));
+function loadInstruments(){
+  fetch('/api/instruments').then(r => r.json()).then(d => {
+    if (d.error) { showError(d.error); return; }
+    instruments = d.instruments;
+    tfLabels = d.tf_labels || {};
+    $('#dirLbl').textContent = d.data_dir;
+    $('#instCount').textContent = d.count;
+    $('#dirStatus').style.display = 'flex';
+    $('#dirPillText').textContent = `已加载 ${d.count} 个品种`;
+    $('#dirDot').classList.remove('off');
+    $('#analyzeHero').style.display = 'block';
+    $('#emptyState').style.display = 'none';
 
-/* ---------- Run ---------- */
-$('#goBtn').addEventListener('click', runAnalyze);
-codeInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !ac.classList.contains('open')) runAnalyze(); });
+    // fill symbol select
+    const sel = $('#symbolSel');
+    sel.innerHTML = '<option value="">— 选择品种 —</option>' +
+      instruments.map(i => `<option value="${i.symbol}">${i.symbol}</option>`).join('');
 
-function runAnalyze(){
-  const code = codeInput.value.trim();
-  if (!code){ alert('请输入股票代码'); return; }
-  const params = new URLSearchParams({
-    code,
-    window: $('#windowSel').value,
-    n_zones: $('#zonesSel').value,
-    mtf: $('#mtfChk').checked ? 'true' : 'false'
-  });
-  $('#emptyState').style.display='none';
-  $('#errorState').style.display='none';
-  $('#results').classList.remove('show');
-  $('#results').style.display='none';
-  $('#loadingState').style.display='block';
-  $('#loadingText').textContent = '正在获取行情数据…';
-  $('#goBtn').disabled = true;
-
-  const stages = ['正在获取行情数据…','计算成交密度剖面…','检测支撑/阻力密集区…','回溯历史胜率与预警…'];
-  let si = 0;
-  const stg = setInterval(()=>{ si = Math.min(si+1, stages.length-1); $('#loadingText').textContent = stages[si]; }, 1400);
-
-  fetch('/api/analyze?' + params.toString())
-    .then(r => r.json()).then(d => {
-      clearInterval(stg);
-      $('#loadingState').style.display='none';
-      $('#goBtn').disabled = false;
-      if (d.error){ showError(d.error); return; }
-      lastData = d;
-      render(d);
-    }).catch(err => {
-      clearInterval(stg);
-      $('#loadingState').style.display='none';
-      $('#goBtn').disabled = false;
-      showError('请求失败：' + err.message);
-    });
+    // default tf = D1
+    fillTfSelect(instruments[0]?.timeframes || ['D1']);
+    showError(''); $('#errorState').style.display='none';
+  }).catch(e => showError('请求失败：'+e.message));
 }
 
+$('#symbolSel').addEventListener('change', () => {
+  const sym = $('#symbolSel').value;
+  const inst = instruments.find(i => i.symbol === sym);
+  fillTfSelect(inst ? inst.timeframes : []);
+});
+
+function fillTfSelect(tfs){
+  const sel = $('#tfSel');
+  if (!tfs.length) { sel.innerHTML = '<option>—</option>'; return; }
+  sel.innerHTML = tfs.map(tf => `<option value="${tf}">${tfLabels[tf]||tf} (${tf})</option>`).join('');
+  if (tfs.includes('D1')) sel.value = 'D1';
+}
+
+/* ---------- Analyze single ---------- */
+$('#analyzeBtn').addEventListener('click', () => {
+  const symbol = $('#symbolSel').value;
+  if (!symbol) { showError('请选择品种'); return; }
+  const params = new URLSearchParams({
+    symbol, tf: $('#tfSel').value,
+    window: $('#windowSel').value, n_zones: $('#zonesSel').value,
+    mtf: $('#mtfChk').checked ? 'true' : 'false'
+  });
+  startLoading(['正在读取数据…','计算成交密度剖面…','检测支撑/阻力密集区…','回溯历史胜率与预警…']);
+  fetch('/api/analyze?' + params).then(r => r.json()).then(d => {
+    stopLoading();
+    if (d.error) { showError(d.error); return; }
+    renderDetail(d);
+    currentSymbol = symbol;
+    // highlight row
+    document.querySelectorAll('#summaryTable tbody tr').forEach(tr => tr.classList.remove('active'));
+  }).catch(e => { stopLoading(); showError('请求失败：'+e.message); });
+});
+
+/* ---------- Analyze all ---------- */
+$('#analyzeAllBtn').addEventListener('click', () => {
+  const params = new URLSearchParams({
+    tf: $('#tfSel').value,
+    window: $('#windowSel').value, n_zones: $('#zonesSel').value
+  });
+  startLoading(['正在扫描全部品种…','逐个计算密集区…','生成汇总报告…']);
+  $('#detailWrap').classList.remove('show'); $('#detailWrap').style.display='none';
+  fetch('/api/analyze_all?' + params).then(r => r.json()).then(d => {
+    stopLoading();
+    if (d.error) { showError(d.error); return; }
+    allRows = d.rows;
+    renderSummary(d);
+  }).catch(e => { stopLoading(); showError('请求失败：'+e.message); });
+});
+
+/* ---------- Loading helpers ---------- */
+function startLoading(stages){
+  $('#emptyState').style.display='none';
+  $('#errorState').style.display='none';
+  $('#loadingState').style.display='block';
+  $('#loadingText').textContent = stages[0];
+  $('#progBar').style.width='5%';
+  let i=0, p=5;
+  const t = setInterval(()=>{
+    i = Math.min(i+1, stages.length-1);
+    p = Math.min(p + 25, 90);
+    $('#loadingText').textContent = stages[i];
+    $('#progBar').style.width = p + '%';
+    if (i === stages.length-1) clearInterval(t);
+  }, 1200);
+  window._loadTimer = t;
+}
+function stopLoading(){
+  if (window._loadTimer) clearInterval(window._loadTimer);
+  $('#loadingState').style.display='none';
+  $('#progBar').style.width='100%';
+}
 function showError(msg){
+  if (msg==='') { $('#errorState').style.display='none'; return; }
   $('#errorText').textContent = msg;
   $('#errorState').style.display='block';
 }
 
-/* ---------- Render ---------- */
-function render(d){
-  $('#results').style.display='block';
-  $('#results').classList.add('show');
+/* ---------- Summary render ---------- */
+function renderSummary(d){
+  const s = d.summary;
+  $('#summaryMeta').textContent = `${s.tf_label} · 窗口 ${s.window} · 成功 ${s.analyzed}/${s.total}` + (s.failed?` · 失败 ${s.failed}`:'');
+  const tb = $('#summaryTable tbody');
+  if (!d.rows.length){ tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-faint);padding:20px">无有效结果</td></tr>'; }
+  else {
+    tb.innerHTML = d.rows.map((r,i) => {
+      const chgCls = r.change_pct >= 0 ? 'up' : 'down';
+      const chgTxt = (r.change_pct>=0?'+':'') + fmt(r.change_pct) + '%';
+      const q = r.quality || '—';
+      return `<tr data-symbol="${r.symbol}">
+        <td class="num" style="color:var(--text-faint)">${i+1}</td>
+        <td><b>${r.symbol}</b></td>
+        <td class="num">${fmt(r.current_price)}</td>
+        <td class="num chg ${chgCls}">${chgTxt}</td>
+        <td class="num s" style="color:var(--support)">${r.nearest_support!=null?fmt(r.nearest_support):'—'}</td>
+        <td class="num" style="color:var(--support)">${r.nearest_support_dist_pct!=null?fmt(r.nearest_support_dist_pct)+'%':'—'}</td>
+        <td class="num r" style="color:var(--resistance)">${r.nearest_resistance!=null?fmt(r.nearest_resistance):'—'}</td>
+        <td class="num" style="color:var(--resistance)">${r.nearest_resistance_dist_pct!=null?fmt(r.nearest_resistance_dist_pct)+'%':'—'}</td>
+        <td class="num" style="color:var(--gold)">${fmt(r.risk_reward_ratio)}</td>
+        <td><span class="tag q-${q}">${q}</span></td>
+        <td class="num">${r.n_zones}</td>
+      </tr>`;
+    }).join('');
+    // row click → analyze detail
+    tb.querySelectorAll('tr').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const sym = tr.dataset.symbol;
+        $('#symbolSel').value = sym;
+        $('#symbolSel').dispatchEvent(new Event('change'));
+        $('#analyzeBtn').click();
+        tb.querySelectorAll('tr').forEach(x => x.classList.remove('active'));
+        tr.classList.add('active');
+        window.scrollTo({top: $('#detailWrap').offsetTop - 20, behavior:'smooth'});
+      });
+    });
+  }
+  $('#summaryWrap').style.display = 'block';
+}
 
-  // stock card
+/* ---------- Detail render ---------- */
+function renderDetail(d){
+  $('#detailWrap').style.display='block';
+  $('#detailWrap').classList.add('show');
   $('#sName').textContent = d.stock_name;
-  $('#sCode').textContent = d.stock_code;
+  $('#sCode').textContent = d.stock_code + ' · ' + (d.tf_label||d.tf);
   $('#sPrice').textContent = fmt(d.current_price);
-  const chg = $('#sChg');
-  const cp = d.change_pct;
+  const chg = $('#sChg'); const cp = d.change_pct;
   chg.textContent = (cp>=0?'+':'') + fmt(cp) + '%';
-  chg.className = 'chg ' + (cp>=0?'up':'down');
-  $('#sMeta').textContent = `窗口 ${d.window} 日 · 密集区 ${d.n_zones} · 样本 ${d.data_bars} 条`;
-  $('#chartHint').textContent = `${d.stock_name}(${d.stock_code}) · 现价 ${fmt(d.current_price)}`;
+  chg.className = 'chg-badge ' + (cp>=0?'up':'down');
+  $('#sMeta').textContent = `窗口 ${d.window} · 密集区 ${d.n_zones} · 样本 ${d.data_bars} 条`;
+  $('#chartHint').textContent = `${d.stock_name} · ${d.tf_label||d.tf} · 现价 ${fmt(d.current_price)}`;
 
-  // risk
   renderGauge(d.risk_score.overall_score);
   const lv = d.risk_score.level;
   const lvEl = $('#gLevel');
@@ -546,126 +612,96 @@ function render(d){
   $('#rLoss').textContent = fmt(d.risk_reward.potential_loss_pct);
   $('#rRatio').textContent = d.risk_reward.risk_reward_ratio;
 
-  // stats
   $('#kSupport').textContent = d.risk_reward.nearest_support!=null ? fmt(d.risk_reward.nearest_support) : '—';
   $('#kResist').textContent = d.risk_reward.nearest_resistance!=null ? fmt(d.risk_reward.nearest_resistance) : '—';
   $('#kZones').textContent = d.zones.length + ' 个';
   $('#kBars').textContent = d.data_bars + ' 条';
 
-  drawMainChart(d);
-  drawDensityChart(d);
-  renderZoneTable(d.zones);
-  renderAlerts(d.alerts);
-  renderMTF(d.mtf);
+  drawMainChart(d); drawDensityChart(d);
+  renderZoneTable(d.zones); renderAlerts(d.alerts); renderMTF(d.mtf);
 }
 
-/* ---------- Gauge ---------- */
 function renderGauge(score){
   score = Math.max(0, Math.min(100, score||0));
   $('#gVal').textContent = Math.round(score);
   const svg = $('#gaugeSvg');
-  const a = Math.PI - (score/100)*Math.PI; // 180deg -> 0deg
-  const r = 52, cx = 60, cy = 60;
-  const x = cx + r*Math.cos(a), y = cy - r*Math.sin(a);
-  const color = score>=70 ? '#4ade80' : score>=40 ? '#fbbf24' : '#f87171';
-  // arc background
+  const a = Math.PI - (score/100)*Math.PI;
+  const r=52, cx=60, cy=60;
+  const x=cx+r*Math.cos(a), y=cy-r*Math.sin(a);
+  const color = score>=70?'#4ade80':score>=40?'#fbbf24':'#f87171';
   const bg = describeArc(cx,cy,r,180,0);
   const fg = describeArc(cx,cy,r,180,180-(score/100)*180);
-  svg.innerHTML = `
-    <path d="${bg}" stroke="rgba(255,255,255,0.08)" stroke-width="7" fill="none" stroke-linecap="round"/>
+  svg.innerHTML = `<path d="${bg}" stroke="rgba(255,255,255,0.08)" stroke-width="7" fill="none" stroke-linecap="round"/>
     <path d="${fg}" stroke="${color}" stroke-width="7" fill="none" stroke-linecap="round" style="transition:all .8s ease"/>
-    <circle cx="${x}" cy="${y}" r="4" fill="${color}"/>
-  `;
+    <circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`;
 }
-function polar(cx,cy,r,deg){ const a=(deg)*Math.PI/180; return [cx+r*Math.cos(a), cy-r*Math.sin(a)]; }
+function polar(cx,cy,r,deg){const a=deg*Math.PI/180;return [cx+r*Math.cos(a), cy-r*Math.sin(a)];}
 function describeArc(cx,cy,r,startDeg,endDeg){
   const [x1,y1]=polar(cx,cy,r,startDeg), [x2,y2]=polar(cx,cy,r,endDeg);
   const large = Math.abs(endDeg-startDeg)<=180?0:1;
   return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
 }
 
-/* ---------- Main chart ---------- */
 function drawMainChart(d){
   const k = d.kline;
-  const shapes = [];
-  const annotations = [];
+  const shapes = [], annotations = [];
   d.zones.forEach(z => {
     const isS = z.zone_type==='support';
     shapes.push({type:'rect',xref:'paper',x0:0,x1:1,y0:z.low,y1:z.high,
-      fillcolor: isS?'rgba(74,222,128,0.13)':'rgba(248,113,113,0.13)',
-      line:{width:0},layer:'below'});
+      fillcolor: isS?'rgba(74,222,128,0.13)':'rgba(248,113,113,0.13)',line:{width:0},layer:'below'});
     shapes.push({type:'line',xref:'paper',x0:0,x1:1,y0:z.center,y1:z.center,
       line:{color:isS?'rgba(74,222,128,0.45)':'rgba(248,113,113,0.45)',width:1,dash:'dot'}});
     annotations.push({xref:'paper',x:1,y:z.center,xanchor:'left',yanchor:'middle',
       text:(isS?'支撑 ':'压力 ')+fmt(z.center),showarrow:false,
-      font:{color:isS?'#4ade80':'#f87171',size:11,family:'JetBrains Mono'},
-      bgcolor:'rgba(11,13,18,0.7)'});
+      font:{color:isS?'#4ade80':'#f87171',size:11,family:'JetBrains Mono'},bgcolor:'rgba(11,13,18,0.7)'});
   });
-  // current price
-  shapes.push({type:'line',xref:'paper',x0:0,x1:1,y0:d.current_price,y1:d.current_price,
-    line:{color:'#e3b066',width:1.6,dash:'dash'}});
-
+  shapes.push({type:'line',xref:'paper',x0:0,x1:1,y0:d.current_price,y1:d.current_price,line:{color:'#e3b066',width:1.6,dash:'dash'}});
   const volColors = k.close.map((c,i)=> c>=k.open[i] ? 'rgba(74,222,128,0.4)':'rgba(248,113,113,0.4)');
-
   const traces = [
     {type:'candlestick',x:k.dates,open:k.open,high:k.high,low:k.low,close:k.close,
      increasing:{line:{color:'#4ade80'},fillcolor:'rgba(74,222,128,0.25)'},
      decreasing:{line:{color:'#f87171'},fillcolor:'rgba(248,113,113,0.25)'},
      name:'K线',xaxis:'x',yaxis:'y'},
-    {type:'bar',x:k.dates,y:k.volume,marker:{color:volColors},name:'成交量',
-     xaxis:'x',yaxis:'y2',showlegend:false}
+    {type:'bar',x:k.dates,y:k.volume,marker:{color:volColors},name:'成交量',xaxis:'x',yaxis:'y2',showlegend:false}
   ];
-
   Plotly.react('mainChart', traces, {
     paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
     font:{family:'Hanken Grotesk, sans-serif',color:'#9aa0ad',size:12},
-    margin:{l:62,r:78,t:10,b:30},
-    dragmode:'pan',
+    margin:{l:62,r:78,t:10,b:30}, dragmode:'pan',
     xaxis:{rangeslider:{visible:false},gridcolor:'rgba(255,255,255,0.05)',linecolor:'rgba(255,255,255,0.12)',anchor:'y'},
-    yaxis:{domain:[0.26,1],title:'',side:'left',gridcolor:'rgba(255,255,255,0.05)',linecolor:'rgba(255,255,255,0.12)',tickfont:{family:'JetBrains Mono'}},
-    yaxis2:{domain:[0,0.20],anchor:'x',title:'',showgrid:false,tickfont:{family:'JetBrains Mono'}},
-    shapes,annotations,
-    showlegend:false,
-    height:480
-  },{displayModeBar:true,displaylogo:false,scrollZoom:true,responsive:true,
-     modeBarButtonsToRemove:['lasso2d','select2d']});
+    yaxis:{domain:[0.26,1],side:'left',gridcolor:'rgba(255,255,255,0.05)',linecolor:'rgba(255,255,255,0.12)',tickfont:{family:'JetBrains Mono'}},
+    yaxis2:{domain:[0,0.20],anchor:'x',showgrid:false,tickfont:{family:'JetBrains Mono'}},
+    shapes,annotations, showlegend:false, height:480
+  },{displayModeBar:true,displaylogo:false,scrollZoom:true,responsive:true,modeBarButtonsToRemove:['lasso2d','select2d']});
 }
 
-/* ---------- Density chart ---------- */
 function drawDensityChart(d){
   const dens = d.density;
   const shapes = [];
-  const annotations = [];
   d.zones.forEach(z=>{
     const isS = z.zone_type==='support';
     shapes.push({type:'line',x0:z.center,x1:z.center,y0:0,y1:1,yref:'x',xref:'paper',
       line:{color:isS?'rgba(74,222,128,0.5)':'rgba(248,113,113,0.5)',width:1,dash:'dot'}});
   });
-  shapes.push({type:'line',x0:d.current_price,x1:d.current_price,y0:0,y1:1,xref:'paper',yref:'paper',
-    line:{color:'#e3b066',width:1.4,dash:'dash'}});
-
-  const trace = {
-    x:dens.price_levels, y:dens.density, type:'scatter', mode:'lines',
-    fill:'tozeroy', fillcolor:'rgba(227,176,102,0.16)',
-    line:{color:'#e3b066',width:2.2}, name:'密度', hovertemplate:'价 %{x:.2f}<br>密度 %{y:.3f}<extra></extra>'
-  };
+  shapes.push({type:'line',x0:d.current_price,x1:d.current_price,y0:0,y1:1,xref:'paper',yref:'paper',line:{color:'#e3b066',width:1.4,dash:'dash'}});
+  const trace = {x:dens.price_levels, y:dens.density, type:'scatter', mode:'lines',
+    fill:'tozeroy', fillcolor:'rgba(227,176,102,0.16)', line:{color:'#e3b066',width:2.2}, name:'密度',
+    hovertemplate:'价 %{x:.2f}<br>密度 %{y:.3f}<extra></extra>'};
   Plotly.react('densityChart',[trace],{
     paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
     font:{family:'Hanken Grotesk, sans-serif',color:'#9aa0ad',size:12},
     margin:{l:62,r:30,t:10,b:36},
     xaxis:{title:'价格',gridcolor:'rgba(255,255,255,0.05)',linecolor:'rgba(255,255,255,0.12)',tickfont:{family:'JetBrains Mono'}},
     yaxis:{title:'密度',gridcolor:'rgba(255,255,255,0.05)',linecolor:'rgba(255,255,255,0.12)'},
-    shapes,annotations,
-    showlegend:false, height:230
+    shapes, showlegend:false, height:230
   },{displayModeBar:false,displaylogo:false,responsive:true});
 }
 
-/* ---------- Zone table ---------- */
 function renderZoneTable(zones){
   const tb = $('#zoneTable tbody');
+  const maxStr = Math.max(...zones.map(x=>x.strength), 0.0001);
   tb.innerHTML = zones.map(z=>{
     const isS = z.zone_type==='support';
-    const maxStr = Math.max(...zones.map(x=>x.strength), 0.0001);
     const w = Math.round(z.strength/maxStr*100);
     return `<tr>
       <td><span class="tag ${z.zone_type}">${isS?'支撑':'压力'}</span></td>
@@ -676,42 +712,38 @@ function renderZoneTable(zones){
       <td class="num">${z.touch_count}</td>
       <td class="num">${fmt(z.volume_pct,1)}%</td>
     </tr>`;
-  }).join('');
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:20px">无密集区</td></tr>';
 }
 
-/* ---------- Alerts ---------- */
 function renderAlerts(alerts){
   const g = $('#alertsGrid');
   if (!alerts.length){ g.innerHTML = '<div class="state"><div class="sub">暂无预警数据</div></div>'; return; }
-  // sort: danger first, then warning, then normal
   const order = {danger:0,warning:1,normal:2};
   alerts = [...alerts].sort((a,b)=>order[a.alert_level]-order[b.alert_level]);
-  g.innerHTML = alerts.map(a=>{
-    return `<div class="alert ${a.alert_level}">
-      <div class="alert-top"><span class="lbl">${a.zone_label}</span><span class="lvl">${a.alert_text}</span></div>
-      <div class="center">${fmt(a.zone_center)}</div>
-      <div class="pbar"><i style="width:${a.progress}%"></i></div>
-      <div class="dist"><span>距现价</span><span>${fmt(a.distance_pct)}% · ¥${fmt(a.distance_price)}</span></div>
-      <div class="advice">${a.advice}</div>
-      <div class="hist">${a.history_label}</div>
-    </div>`;
-  }).join('');
+  g.innerHTML = alerts.map(a=>`<div class="alert ${a.alert_level}">
+    <div class="alert-top"><span class="lbl">${a.zone_label}</span><span class="lvl">${a.alert_text}</span></div>
+    <div class="center">${fmt(a.zone_center)}</div>
+    <div class="pbar"><i style="width:${a.progress}%"></i></div>
+    <div class="dist"><span>距现价</span><span>${fmt(a.distance_pct)}% · ${fmt(a.distance_price)}</span></div>
+    <div class="advice">${a.advice}</div>
+    <div class="hist">${a.history_label}</div>
+  </div>`).join('');
 }
 
-/* ---------- MTF ---------- */
 function renderMTF(mtf){
   const wrap = $('#mtfWrap');
   if (!mtf || mtf.error){ wrap.style.display='none'; return; }
   const tfs = ['combined','day','week','month'];
   const labels = {combined:'综合',day:'日线',week:'周线',month:'月线'};
   const tabs = $('#mtfTabs');
-  tabs.innerHTML = tfs.map((t,i)=>`<span class="mtf-tab ${i===0?'active':''}" data-tf="${t}">${labels[t]}</span>`).join('');
+  const available = tfs.filter(t => mtf[t] !== undefined);
+  tabs.innerHTML = available.map((t,i)=>`<span class="mtf-tab ${i===0?'active':''}" data-tf="${t}">${labels[t]||t}</span>`).join('');
   tabs.querySelectorAll('.mtf-tab').forEach(el=>el.addEventListener('click',()=>{
     tabs.querySelectorAll('.mtf-tab').forEach(x=>x.classList.remove('active'));
     el.classList.add('active'); fillMTFTable(mtf[el.dataset.tf]);
   }));
   wrap.style.display='block';
-  fillMTFTable(mtf['combined']);
+  if (available.length) fillMTFTable(mtf[available[0]]);
 }
 function fillMTFTable(zones){
   const tb = $('#mtfTable tbody');
@@ -728,8 +760,15 @@ function fillMTFTable(zones){
   }).join('');
 }
 
-/* ---------- focus input on load ---------- */
-window.addEventListener('load', ()=> codeInput.focus());
+/* ---------- auto load on start if default path set ---------- */
+window.addEventListener('load', () => {
+  fetch('/api/data_dir').then(r=>r.json()).then(d=>{
+    if (d.set && d.path){
+      $('#dirInput').value = d.path;
+      loadInstruments();
+    }
+  }).catch(()=>{});
+});
 </script>
 </body>
 </html>
