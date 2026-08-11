@@ -26,11 +26,12 @@ from src.local_data_loader import (
     TIMEFRAME_LABELS, pick_mtf_timeframes,
 )
 from src.density_analyzer import (
-    find_dense_zones, classify_zones, multi_timeframe_zones,
-    calc_risk_reward, compute_density_profile, ZoneInfo,
+    find_dense_zones, classify_zones,
+    ZoneInfo,
 )
 from src.zone_history import (
     analyze_zone_history, generate_touch_alerts, compute_risk_score,
+    DIRECTION_LABELS,
 )
 
 app = Flask(__name__)
@@ -76,7 +77,8 @@ def _kline_to_json(df, n_bars: int = 150) -> dict:
 
 
 def _analyze_df(df, window: int, n_zones: int, symbol: str, tf: str,
-                do_mtf: bool = True, mtf_frames=None) -> dict:
+                do_mtf: bool = True, mtf_frames=None,
+                direction: str = "long") -> dict:
     """对单个 DataFrame 执行完整分析，返回结果 dict（不含 K 线大对象，便于批量调用）"""
     if len(df) < window:
         raise ValueError(f"数据不足：仅 {len(df)} 条，需要 ≥ {window} 条")
@@ -87,32 +89,33 @@ def _analyze_df(df, window: int, n_zones: int, symbol: str, tf: str,
     zones = find_dense_zones(df, window=window, n_zones=n_zones)
     classify_zones(zones, current_price)
 
-    window_df = df.tail(window)
-    price_levels, density, pmin, pmax = compute_density_profile(window_df)
-
     histories = analyze_zone_history(df, window=window, n_zones=n_zones)
     alerts = generate_touch_alerts(current_price, zones, histories)
-    risk_score = compute_risk_score(alerts)
-    risk_reward = calc_risk_reward(current_price, zones)
+    risk_score = compute_risk_score(
+        alerts, df=df, zones=zones, histories=histories, direction=direction
+    )
 
-    mtf = None
-    mtf_labels = {}
-    mtf_order = []
+    # 多周期关键位：不合并、不加权，仅用于主图叠加显示
+    mtf_zones = []
     if do_mtf and mtf_frames:
-        try:
-            mtf_raw = multi_timeframe_zones(mtf_frames, n_zones=n_zones)
-            mtf = {tf_key: [_zone_to_dict(z) for z in zs] for tf_key, zs in mtf_raw.items()}
-            # 构建 label 和 order（按周期从小到大排序，combined 单独放最前）
-            for fr in mtf_frames:
-                code = fr["tf"]
-                if code not in mtf_order:
-                    mtf_order.append(code)
-                mtf_labels[code] = TIMEFRAME_LABELS.get(code, code)
-            # 按 TF_ORDER 从小到大排序
-            mtf_order.sort(key=lambda c: config.TF_ORDER.index(c) if c in config.TF_ORDER else 999)
-            mtf_labels["combined"] = "综合"
-        except Exception as e:
-            mtf = {"error": f"多时间框架分析失败: {e}"}
+        for fr in mtf_frames:
+            code = fr["tf"]
+            if code == tf:
+                continue  # 主周期已在 zones 中
+            ndf = fr.get("df")
+            if ndf is None or len(ndf) < 5:
+                continue
+            try:
+                nprice = float(ndf["close"].iloc[-1])
+                nzs = find_dense_zones(ndf, window=min(fr.get("window", window), len(ndf)), n_zones=n_zones)
+                classify_zones(nzs, nprice)
+                mtf_zones.append({
+                    "tf": code,
+                    "tf_label": TIMEFRAME_LABELS.get(code, code),
+                    "zones": [_zone_to_dict(z) for z in nzs],
+                })
+            except Exception:
+                pass
 
     return {
         "stock_name": symbol,
@@ -123,12 +126,6 @@ def _analyze_df(df, window: int, n_zones: int, symbol: str, tf: str,
         "n_zones": n_zones,
         "data_bars": len(df),
         "zones": [_zone_to_dict(z) for z in zones],
-        "density": {
-            "price_levels": [round(float(x), 4) for x in price_levels.tolist()],
-            "density": [round(float(x), 6) for x in density.tolist()],
-            "price_min": round(float(pmin), 4),
-            "price_max": round(float(pmax), 4),
-        },
         "history": [{
             "center": h.center,
             "zone_type": h.zone_type,
@@ -139,10 +136,7 @@ def _analyze_df(df, window: int, n_zones: int, symbol: str, tf: str,
         } for h in histories],
         "alerts": alerts,
         "risk_score": risk_score,
-        "risk_reward": risk_reward,
-        "mtf": mtf,
-        "mtf_labels": mtf_labels,
-        "mtf_order": mtf_order,
+        "mtf_zones": mtf_zones,
     }
 
 
@@ -219,6 +213,9 @@ def api_analyze():
     except ValueError:
         n_zones = config.DEFAULT_N_ZONES
     use_mtf = request.args.get("mtf", "true").lower() in ("true", "1", "yes")
+    direction = (request.args.get("direction") or "long").strip().lower()
+    if direction not in DIRECTION_LABELS:
+        direction = "long"
 
     window = max(10, min(window, 500))
     n_zones = max(1, min(n_zones, 8))
@@ -251,7 +248,8 @@ def api_analyze():
     try:
         result = _analyze_df(df, window=window, n_zones=n_zones,
                              symbol=symbol, tf=tf,
-                             do_mtf=use_mtf, mtf_frames=mtf_frames)
+                             do_mtf=use_mtf, mtf_frames=mtf_frames,
+                             direction=direction)
         result["tf"] = tf
         result["tf_label"] = TIMEFRAME_LABELS.get(tf, tf)
         result["kline"] = _kline_to_json(df, n_bars=150)
@@ -276,6 +274,9 @@ def api_analyze_all():
         n_zones = int(request.args.get("n_zones", config.DEFAULT_N_ZONES))
     except ValueError:
         n_zones = config.DEFAULT_N_ZONES
+    direction = (request.args.get("direction") or "long").strip().lower()
+    if direction not in DIRECTION_LABELS:
+        direction = "long"
     window = max(10, min(window, 500))
     n_zones = max(1, min(n_zones, 8))
 
@@ -292,12 +293,15 @@ def api_analyze_all():
                 errors.append({"symbol": symbol, "reason": f"数据不足({len(df)}条)"})
                 continue
 
-            # 简化分析：不计算 mtf，不计算完整 history（提速）
             current_price = float(df["close"].iloc[-1])
             latest_pct = float(df["pct_chg"].iloc[-1]) if "pct_chg" in df.columns else 0.0
             zones = find_dense_zones(df, window=window, n_zones=n_zones)
             classify_zones(zones, current_price)
-            rr = calc_risk_reward(current_price, zones)
+            histories = analyze_zone_history(df, window=window, n_zones=n_zones)
+            alerts = generate_touch_alerts(current_price, zones, histories)
+            risk_score = compute_risk_score(
+                alerts, df=df, zones=zones, histories=histories, direction=direction
+            )
 
             supports = [z for z in zones if z.zone_type == "support"]
             resistances = [z for z in zones if z.zone_type == "resistance"]
@@ -314,8 +318,12 @@ def api_analyze_all():
                 "nearest_support_dist_pct": nearest_sup.distance_pct if nearest_sup else None,
                 "nearest_resistance": nearest_res.center if nearest_res else None,
                 "nearest_resistance_dist_pct": nearest_res.distance_pct if nearest_res else None,
-                "risk_reward_ratio": rr["risk_reward_ratio"],
-                "quality": rr["quality"],
+                "overall_score": risk_score["overall_score"],
+                "level": risk_score["level"],
+                "trend_label": risk_score["trend_label"],
+                "success_rate": risk_score["success_rate"],
+                "nearest_distance_pct": risk_score["nearest_distance_pct"],
+                "direction": direction,
                 "data_bars": len(df),
                 "zones": [_zone_to_dict(z) for z in zones],
             })
@@ -323,8 +331,8 @@ def api_analyze_all():
             errors.append({"symbol": symbol, "reason": str(e)})
             continue
 
-    # 排序：盈亏比从高到低
-    rows.sort(key=lambda r: -(r["risk_reward_ratio"] or 0))
+    # 排序：综合评分从高到低
+    rows.sort(key=lambda r: -(r["overall_score"] or 0))
 
     summary = {
         "total": len(rows) + len(errors),
@@ -334,6 +342,8 @@ def api_analyze_all():
         "tf_label": TIMEFRAME_LABELS.get(tf, tf),
         "window": window,
         "n_zones": n_zones,
+        "direction": direction,
+        "direction_label": DIRECTION_LABELS.get(direction, direction),
         "data_dir": data_dir,
     }
 

@@ -164,7 +164,7 @@ def generate_touch_alerts(
             "zone_type": z.zone_type,
             "zone_label": "支撑区" if z.zone_type == "support" else "压力区",
             "distance_pct": round(dist_pct, 2),
-            "distance_price": round(dist_price, 2),
+            "distance_price": round(dist_price, 5),
             "alert_level": level,
             "alert_text": level_text,
             "progress": progress,
@@ -176,51 +176,208 @@ def generate_touch_alerts(
     return alerts
 
 
-def compute_risk_score(alerts: List[Dict]) -> Dict:
+DIRECTION_LABELS = {
+    "long": "只做多",
+    "short": "只做空",
+    "both": "多空都做",
+}
+
+
+def _distance_score(dist_pct: float) -> float:
+    """距离得分：距离关键位越近得分越高 (0-100)"""
+    d = abs(dist_pct)
+    if d <= 0.5:
+        return 100
+    if d <= 1.0:
+        return 90
+    if d <= 2.0:
+        return 75
+    if d <= 3.0:
+        return 60
+    if d <= 5.0:
+        return 40
+    if d <= 8.0:
+        return 20
+    return 5
+
+
+def _success_rate_score(rate: float) -> float:
+    """守住率得分 (0-100)"""
+    if rate <= 0:
+        return 30  # 暂无历史数据
+    if rate >= 80:
+        return 100
+    if rate >= 60:
+        return 80
+    if rate >= 40:
+        return 60
+    if rate >= 20:
+        return 40
+    return 15
+
+
+def _strength_score(zone: ZoneInfo) -> float:
+    """强度得分：基于密集区密度强度 (0-100)"""
+    s = zone.strength  # 0-1 归一化密度
+    return max(10, min(100, round(s * 100)))
+
+
+def _compute_trend(df: pd.DataFrame, direction: str):
     """
-    综合风险评估
-
-    返回:
-        {overall_score: 0-100, level: 'buy'/'hold'/'sell',
-         summary: '一句话总结'}
+    计算趋势得分与描述（基于 EMA20）
+    返回 (score 0-100, label, detail)
     """
-    if not alerts:
-        return {"overall_score": 0, "level": "hold", "summary": "暂无数据"}
+    closes = df["close"].values
+    n = len(closes)
+    if n < 20:
+        return 50.0, "数据不足", ""
 
-    supports = [a for a in alerts if a["zone_type"] == "support"]
-    resistances = [a for a in alerts if a["zone_type"] == "resistance"]
+    s = pd.Series(closes)
+    ema20 = s.ewm(span=20, adjust=False).mean().iloc[-1]
+    price = float(closes[-1])
 
-    # 最近支撑距离
-    min_support_dist = min((a["distance_pct"] for a in supports), default=5.0)
-    # 最近压力距离
-    min_resistance_dist = min((a["distance_pct"] for a in resistances), default=5.0)
+    if np.isnan(ema20):
+        return 50.0, "数据不足", ""
 
-    # RR
-    rr = min_resistance_dist / max(min_support_dist, 0.1)
+    deviation = (price - ema20) / ema20 * 100
+    slope = 0.0
+    if n >= 26:
+        ema20_prev = s.ewm(span=20, adjust=False).mean().iloc[-6]
+        if not np.isnan(ema20_prev) and ema20_prev > 0:
+            slope = (ema20 - ema20_prev) / ema20_prev * 100
 
-    # 评分 (0-100)
-    score = 50
-    if rr >= 2.5:
-        score = min(100, 50 + int(rr * 10))
-    elif rr >= 1.5:
-        score = 50
+    trend_strength = deviation * 0.6 + slope * 0.4
+
+    if direction == "long":
+        score = 50 + trend_strength * 8
+    elif direction == "short":
+        score = 50 - trend_strength * 8
+    else:  # both
+        score = 50 + abs(trend_strength) * 6
+
+    score = max(0, min(100, score))
+
+    if trend_strength > 1.5:
+        label = "上涨"
+    elif trend_strength < -1.5:
+        label = "下跌"
     else:
-        score = max(0, 50 - int((1.5 - rr) * 30))
+        label = "震荡"
 
-    if score >= 70:
-        level = "buy"
-        summary = f"盈亏比 {rr:.1f}，机会良好，可关注买入"
-    elif score >= 40:
-        level = "hold"
-        summary = f"盈亏比 {rr:.1f}，机会一般，建议观望"
+    detail = f"现价vsEMA20 {deviation:+.2f}% · EMA20斜率 {slope:+.2f}%"
+    return round(score, 1), label, detail
+
+
+def compute_risk_score(
+    alerts: List[Dict],
+    df: pd.DataFrame = None,
+    zones: List[ZoneInfo] = None,
+    histories=None,
+    direction: str = "long",
+) -> Dict:
+    """
+    综合风险评估：距离(20%) + 守住率(40%) + 强度(20%) + 趋势(20%)
+
+    direction:
+        'long'  - 只做多：关注支撑区（买入机会）
+        'short' - 只做空：关注压力区（卖出机会）
+        'both'  - 多空都做：关注最近的关键位
+    """
+    zones = zones or []
+    histories = histories or []
+
+    _empty = {
+        "overall_score": 0,
+        "level": "hold",
+        "level_label": "🟡 观望",
+        "summary": "暂无关键位数据",
+        "direction": direction,
+        "direction_label": DIRECTION_LABELS.get(direction, direction),
+        "scores": {"distance": 0, "success_rate": 0, "strength": 0, "trend": 0},
+        "nearest_zone": None,
+        "nearest_zone_type": "",
+        "nearest_distance_pct": None,
+        "success_rate": 0,
+        "trend_label": "—",
+        "trend_detail": "",
+    }
+
+    if not zones:
+        return _empty
+
+    # 趋势得分（始终计算）
+    if df is not None:
+        trend_score, trend_label, trend_detail = _compute_trend(df, direction)
     else:
-        level = "sell"
-        summary = f"盈亏比 {rr:.1f}，风险较高，不建议参与"
+        trend_score, trend_label, trend_detail = 50.0, "—", ""
+
+    # 根据方向选择关注的关键位
+    if direction == "long":
+        focus_zones = [z for z in zones if z.zone_type == "support"]
+        focus_name = "支撑"
+    elif direction == "short":
+        focus_zones = [z for z in zones if z.zone_type == "resistance"]
+        focus_name = "压力"
+    else:
+        focus_zones = list(zones)
+        focus_name = "关键"
+
+    if not focus_zones:
+        overall = round(trend_score * 0.2)
+        level = "buy" if overall >= 70 else "hold" if overall >= 40 else "sell"
+        return {
+            **_empty,
+            "overall_score": overall,
+            "level": level,
+            "level_label": {"buy": "🟢 可关注", "hold": "🟡 观望", "sell": "🔴 回避"}[level],
+            "summary": f"无{focus_name}位，趋势{trend_label}",
+            "scores": {"distance": 0, "success_rate": 0, "strength": 0, "trend": round(trend_score)},
+            "trend_label": trend_label,
+            "trend_detail": trend_detail,
+        }
+
+    # 最近的关键位
+    nearest = min(focus_zones, key=lambda z: abs(z.distance_pct))
+
+    # 距离得分
+    dist_score = _distance_score(nearest.distance_pct)
+
+    # 守住率得分：匹配历史记录
+    tol = max(0.01, abs(nearest.center) * 0.005)
+    hist = next((h for h in histories if abs(h.center - nearest.center) < tol), None)
+    rate = hist.success_rate if hist else 0
+    rate_score = _success_rate_score(rate)
+
+    # 强度得分
+    str_score = _strength_score(nearest)
+
+    overall = round(dist_score * 0.2 + rate_score * 0.4 + str_score * 0.2 + trend_score * 0.2)
+    level = "buy" if overall >= 70 else "hold" if overall >= 40 else "sell"
+
+    zone_label = "支撑区" if nearest.zone_type == "support" else "压力区"
+    dir_action = "关注做多" if direction == "long" else "关注做空" if direction == "short" else "关注机会"
+    summary = (
+        f"最近{zone_label}距现价 {abs(nearest.distance_pct):.2f}%，"
+        f"守住率 {rate}%，趋势{trend_label}，{dir_action}"
+    )
 
     return {
-        "overall_score": score,
+        "overall_score": overall,
         "level": level,
         "level_label": {"buy": "🟢 可关注", "hold": "🟡 观望", "sell": "🔴 回避"}[level],
         "summary": summary,
-        "rr_ratio": round(rr, 1),
+        "direction": direction,
+        "direction_label": DIRECTION_LABELS.get(direction, direction),
+        "scores": {
+            "distance": round(dist_score),
+            "success_rate": round(rate_score),
+            "strength": round(str_score),
+            "trend": round(trend_score),
+        },
+        "nearest_zone": nearest.center,
+        "nearest_zone_type": nearest.zone_type,
+        "nearest_distance_pct": nearest.distance_pct,
+        "success_rate": rate,
+        "trend_label": trend_label,
+        "trend_detail": trend_detail,
     }

@@ -208,9 +208,9 @@ def find_dense_zones(
         zone_type = "support" if dist_pct < 0 else "resistance"
 
         zones.append(ZoneInfo(
-            center=round(center, 2),
-            low=round(zone_low, 2),
-            high=round(zone_high, 2),
+            center=round(center, 5),
+            low=round(zone_low, 5),
+            high=round(zone_high, 5),
             strength=round(float(density[pk]), 4),
             touch_count=touch_count,
             volume_pct=round(volume_pct, 1),
@@ -283,7 +283,7 @@ def multi_timeframe_zones(
             break
         dist_pct = (ctr - current_price) / current_price * 100
         combined.append(ZoneInfo(
-            center=round(ctr, 2), low=round(lo, 2), high=round(hi, 2),
+            center=round(ctr, 5), low=round(lo, 5), high=round(hi, 5),
             strength=round(w_str / divisor, 4),
             zone_type="support" if dist_pct < 0 else "resistance",
             distance_pct=round(dist_pct, 2),
