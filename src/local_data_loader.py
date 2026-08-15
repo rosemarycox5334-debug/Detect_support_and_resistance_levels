@@ -33,8 +33,8 @@ TIMEFRAME_LABELS = {
     "H4": "4小时",
 }
 
-# 多时间框架分析默认使用的周期组（与原 baostock 版 day/week/month 对应）
-# 期货本地数据通常没有月线，用 W1 替代月线
+# 多时间框架分析默认使用的周期组
+# 本地数据通常没有月线，用 W1 替代月线
 MTF_TIMEFRAMES = ["D1", "W1"]
 
 # 周期层级（从小到大），与 config.TF_ORDER 保持一致
@@ -99,14 +99,51 @@ _FILENAME_PATTERNS = [
     re.compile(r"^(?P<symbol>.+)_(?P<tf>[A-Z0-9]+)\.parquet$"),
 ]
 
+# A股数据集：{6位代码}_{daily|60min|15min|5min}.parquet
+# 旧正则用 [A-Z0-9]+ 匹配周期，而 'daily'/'15min' 是小写，因此完全匹配不到，
+# 实测 list_instruments(A股目录) 返回 0 个品种。这里单独加一条规则。
+_ASHARE_PATTERN = re.compile(r"^(?P<code>\d{6})_(?P<tf>daily|60min|15min|5min)\.parquet$")
+
+# A股周期代码 -> 内部统一周期名（沿用项目既有的 D1/H1/M15/M5 体系）
+_ASHARE_TF_TO_STD = {"daily": "D1", "60min": "H1", "15min": "M15", "5min": "M5"}
+_STD_TO_ASHARE_TF = {v: k for k, v in _ASHARE_TF_TO_STD.items()}
+
+# 前端会把周期参数 upper() 后传回来（'daily' -> 'DAILY'），
+# 因此这里同时接受标准名与 A股 原始名的大小写变体。
+_ASHARE_TF_ALIASES = {}
+for _raw, _std in _ASHARE_TF_TO_STD.items():
+    for _k in (_raw, _raw.upper(), _std, _std.upper()):
+        _ASHARE_TF_ALIASES[_k] = _raw
+
+
+def ashare_tf_file(tf: str) -> Optional[str]:
+    """把任意周期写法归一成 A股 文件名里的周期段；非 A股 周期返回 None"""
+    return _ASHARE_TF_ALIASES.get((tf or "").strip())
+
 
 def _parse_filename(filename: str) -> Optional[Tuple[str, str]]:
     """从文件名解析 (品种, 周期)；不匹配返回 None"""
+    m = _ASHARE_PATTERN.match(filename)
+    if m:
+        return m.group("code"), _ASHARE_TF_TO_STD[m.group("tf")]
     for pat in _FILENAME_PATTERNS:
         m = pat.match(filename)
         if m:
             return m.group("symbol"), m.group("tf")
     return None
+
+
+def is_ashare_dir(data_dir: str) -> bool:
+    """目录是否为 A股数据集（存在至少一个 {6位代码}_{周期}.parquet）"""
+    if not os.path.isdir(data_dir):
+        return False
+    try:
+        for fn in os.listdir(data_dir):
+            if _ASHARE_PATTERN.match(fn):
+                return True
+    except OSError:
+        pass
+    return False
 
 
 def list_instruments(data_dir: str) -> Dict[str, List[str]]:
@@ -160,6 +197,15 @@ def load_kline(data_dir: str, symbol: str, tf: str) -> pd.DataFrame:
         symbol:   品种名（不含"主连"后缀）
         tf:       周期代码，如 'D1'/'W1'/'M5'
     """
+    # A股数据集：走 srlab 的适配 + 复权路径
+    # 本地 A股 parquet 实测为**不复权**（time 单位是 unix秒/1000，volume 单位是手），
+    # 历史含 -20% ~ -57% 的除权跳空，直接拿来算成交量剖面/枢轴/ATR 全是错的。
+    # 界面用前复权(qfq)，使最新价 = 真实市价。
+    _a_tf = ashare_tf_file(tf)
+    if _a_tf and _ASHARE_PATTERN.match(f"{symbol}_{_a_tf}.parquet") and \
+            os.path.exists(os.path.join(data_dir, f"{symbol}_{_a_tf}.parquet")):
+        return _load_ashare(data_dir, symbol, _a_tf)
+
     path = _filepath(data_dir, symbol, tf)
     if not os.path.exists(path):
         raise FileNotFoundError(f"找不到数据文件: {path}")
@@ -212,6 +258,40 @@ def load_kline(data_dir: str, symbol: str, tf: str) -> pd.DataFrame:
 
     # 统一最终列顺序
     return df[["date", "open", "high", "low", "close", "volume", "amount", "turn", "pct_chg"]]
+
+
+def _load_ashare(data_dir: str, code: str, tf: str) -> pd.DataFrame:
+    """
+    读取并复权 A股 K 线，返回本模块统一列格式。
+
+    复权策略：优先权威因子缓存（data/adj_factors.parquet）；
+    缺失时**降级为不复权，但在 df.attrs 里明确标记**，由界面显示告警。
+    与回测路径的差异是有意的：
+      - 回测缺因子直接报错（错误的复权数据会污染结论，宁可不跑）
+      - 界面缺因子仍然展示，但必须让用户看见"此标的未复权"这个事实
+    """
+    from src.srlab.data import MissingFactorError, ashare_load
+
+    tf_file = ashare_tf_file(tf) or tf
+    try:
+        df = ashare_load(data_dir, code, tf_file,
+                         adjust="factor", adjust_mode="qfq")
+    except MissingFactorError:
+        df = ashare_load(data_dir, code, tf_file, adjust="none")
+        df.attrs["adjust_warning"] = (
+            f"{code} 缺少权威复权因子，当前为**不复权**数据，"
+            f"历史除权跳空会影响关键位判定。"
+            f"运行 python scripts/build_factors.py 补齐。")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"找不到数据文件: {code}_{tf_file}.parquet")
+
+    if "turn" not in df.columns:
+        df["turn"] = 0.0
+    attrs = dict(df.attrs)
+    out = df[["date", "open", "high", "low", "close", "volume",
+              "amount", "turn", "pct_chg"]].copy()
+    out.attrs.update(attrs)
+    return out
 
 
 def iter_all_instruments(

@@ -1,0 +1,151 @@
+{
+  "meta": {
+    "detector": "V3_fusion",
+    "generated": "2026-08-15 03:03",
+    "eval_start": "2012-01-01",
+    "rebalance": 20,
+    "horizon": 40,
+    "hold_bars": 10,
+    "note": "edge_edges 在 train 股票池上确定；buckets 统计来自互斥的 test 股票池"
+  },
+  "edge_edges": {
+    "support": [
+      1.5476556520345706,
+      2.0794415416798357,
+      2.4340219896700375,
+      2.7817775059574643
+    ],
+    "resistance": [
+      1.6094379124341003,
+      2.1066924785399594,
+      2.4849066497880004,
+      2.8279203563494315
+    ]
+  },
+  "stall_edges": {
+    "support": [
+      0.9628853569086716,
+      1.2127014013569162,
+      1.4472008675982697,
+      1.7798506367283644
+    ],
+    "resistance": [
+      0.9888361010576564,
+      1.3133972295853353,
+      1.5948333420019745,
+      1.9066127897880796
+    ]
+  },
+  "buckets": [
+    {
+      "kind": "support",
+      "bucket": "Q1",
+      "n": 4452,
+      "n_decided": 3856,
+      "hold_rate": 0.6979,
+      "hold_lo95": 0.6832,
+      "fwd_ret_pct": 0.4152,
+      "edge_atr": 0.1222,
+      "touch_rate": null
+    },
+    {
+      "kind": "support",
+      "bucket": "Q2",
+      "n": 4644,
+      "n_decided": 3909,
+      "hold_rate": 0.7286,
+      "hold_lo95": 0.7144,
+      "fwd_ret_pct": 0.4806,
+      "edge_atr": 0.2076,
+      "touch_rate": null
+    },
+    {
+      "kind": "support",
+      "bucket": "Q3",
+      "n": 5146,
+      "n_decided": 4219,
+      "hold_rate": 0.7409,
+      "hold_lo95": 0.7275,
+      "fwd_ret_pct": 0.4861,
+      "edge_atr": 0.2173,
+      "touch_rate": null
+    },
+    {
+      "kind": "support",
+      "bucket": "Q4",
+      "n": 4830,
+      "n_decided": 4080,
+      "hold_rate": 0.7466,
+      "hold_lo95": 0.733,
+      "fwd_ret_pct": 0.8089,
+      "edge_atr": 0.2962,
+      "touch_rate": null
+    },
+    {
+      "kind": "support",
+      "bucket": "Q5",
+      "n": 4762,
+      "n_decided": 4000,
+      "hold_rate": 0.7645,
+      "hold_lo95": 0.7511,
+      "fwd_ret_pct": 0.7788,
+      "edge_atr": 0.3563,
+      "touch_rate": null
+    },
+    {
+      "kind": "resistance",
+      "bucket": "Q1",
+      "n": 5122,
+      "n_decided": 4879,
+      "hold_rate": 0.7311,
+      "hold_lo95": 0.7185,
+      "fwd_ret_pct": -1.208,
+      "edge_atr": -0.9611,
+      "touch_rate": null
+    },
+    {
+      "kind": "resistance",
+      "bucket": "Q2",
+      "n": 5417,
+      "n_decided": 4985,
+      "hold_rate": 0.7649,
+      "hold_lo95": 0.7529,
+      "fwd_ret_pct": -0.7248,
+      "edge_atr": -0.8893,
+      "touch_rate": null
+    },
+    {
+      "kind": "resistance",
+      "bucket": "Q3",
+      "n": 5336,
+      "n_decided": 4927,
+      "hold_rate": 0.7938,
+      "hold_lo95": 0.7823,
+      "fwd_ret_pct": -0.4237,
+      "edge_atr": -0.8383,
+      "touch_rate": null
+    },
+    {
+      "kind": "resistance",
+      "bucket": "Q4",
+      "n": 5461,
+      "n_decided": 5054,
+      "hold_rate": 0.7942,
+      "hold_lo95": 0.7829,
+      "fwd_ret_pct": -0.733,
+      "edge_atr": -0.9108,
+      "touch_rate": null
+    },
+    {
+      "kind": "resistance",
+      "bucket": "Q5",
+      "n": 5084,
+      "n_decided": 4709,
+      "hold_rate": 0.7961,
+      "hold_lo95": 0.7844,
+      "fwd_ret_pct": -0.6838,
+      "edge_atr": -1.0917,
+      "touch_rate": null
+    }
+  ]
+}

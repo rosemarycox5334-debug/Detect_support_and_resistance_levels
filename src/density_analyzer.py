@@ -44,6 +44,9 @@ class ZoneInfo:
     volume_pct: float = 0.0
     zone_type: str = ""
     distance_pct: float = 0.0
+    # 多周期共振信息（由 multi_timeframe_zones 填充）
+    tf_count: int = 1          # 有多少个周期在此位置上给出了关键位
+    tfs: str = ""              # 参与共振的周期代码，如 "D1+W1"
 
 
 def compute_density_profile(
@@ -233,26 +236,37 @@ def classify_zones(zones: List[ZoneInfo], current_price: float) -> List[ZoneInfo
 def multi_timeframe_zones(
     frames: List[Dict],
     n_zones: int = DEFAULT_N_ZONES,
+    merge_atr: float = 0.8,
 ) -> Dict[str, List[ZoneInfo]]:
     """
     多时间框架密集区分析（自适应版）
 
     frames: [{"tf": "H1", "df": df, "weight": 1.0, "window": 60}, ...]
-            第一个 frame 为主周期，用于确定 current_price。
+            第一个 frame 为主周期，用于确定 current_price 与合并尺度。
             weight: 大周期权重更高（2/3），小周期较低（0.5）。
             window: 该周期的分析窗口（K线数）。
+    merge_atr: 合并容差，单位为主周期 ATR。中心价相距 <= merge_atr*ATR
+               的关键位视为同一个位（多周期共振）。
 
     返回: {tf_code: [zones], ..., "combined": [zones]}
-          combined 为所有周期加权合并后的密集区。
+          combined 为跨周期按 ATR 距离聚类合并后的关键位，
+          每个元素带 tf_count / tfs 表示共振情况。
     """
     if not frames:
         return {"combined": []}
 
     result: Dict[str, List[ZoneInfo]] = {}
-    current_price = float(frames[0]["df"]["close"].iloc[-1])
+    main_df = frames[0]["df"]
+    current_price = float(main_df["close"].iloc[-1])
+
+    # 合并容差用主周期 ATR 度量，跨标的、跨价位可比
+    atr = _atr_last(main_df)
+    if not np.isfinite(atr) or atr <= 0:
+        atr = max(current_price * 0.01, 1e-9)
+    tol = merge_atr * atr
+
     total_weight = 0.0
-    # (low, high) -> [center, weighted_strength]
-    weighted: Dict[Tuple[float, float], List[float]] = {}
+    items: List[Tuple[float, float, float, float, str]] = []  # (center, low, high, w_strength, tf)
 
     for fr in frames:
         tf_code = fr["tf"]
@@ -268,29 +282,79 @@ def multi_timeframe_zones(
         classify_zones(zs, current_price)
         result[tf_code] = zs
         total_weight += w
-
         for z in zs:
-            key = (z.low, z.high)
-            if key not in weighted:
-                weighted[key] = [z.center, 0.0]
-            weighted[key][1] += z.strength * w
+            items.append((z.center, z.low, z.high, z.strength * w, tf_code))
 
-    # 归一化（按实际使用的总权重）并按强度排序
-    divisor = total_weight if total_weight > 0 else 1.0
-    combined = []
-    for (lo, hi), (ctr, w_str) in sorted(weighted.items(), key=lambda x: -x[1][1]):
-        if len(combined) >= n_zones:
-            break
-        dist_pct = (ctr - current_price) / current_price * 100
-        combined.append(ZoneInfo(
+    result["combined"] = _cluster_zones(
+        items, current_price, tol,
+        divisor=total_weight if total_weight > 0 else 1.0,
+        n_zones=n_zones)
+    return result
+
+
+def _atr_last(df: pd.DataFrame, period: int = 14) -> float:
+    """最后一根的 ATR（简单滚动均值），用于给多周期合并提供尺度"""
+    if len(df) < 2:
+        return float("nan")
+    h = df["high"].to_numpy(float)
+    l = df["low"].to_numpy(float)
+    c = df["close"].to_numpy(float)
+    pc = np.concatenate([[c[0]], c[:-1]])
+    tr = np.maximum(h - l, np.maximum(np.abs(h - pc), np.abs(l - pc)))
+    n = min(period, len(tr))
+    return float(np.mean(tr[-n:]))
+
+
+def _cluster_zones(
+    items: List[Tuple[float, float, float, float, str]],
+    current_price: float,
+    tol: float,
+    divisor: float,
+    n_zones: int,
+) -> List[ZoneInfo]:
+    """
+    按中心价距离做单链凝聚聚类，容差 tol（= merge_atr * ATR）。
+
+    旧实现用 (z.low, z.high) 浮点元组做字典键来合并，两个不同周期算出的
+    区间边界几乎不可能逐位相同，实测 D1+H1+M15 共 9 个区间去重后仍是 9 个，
+    **合并次数恒为 0** —— "大周期权重 2.0/3.0" 的加权逻辑从未生效。
+
+    这里改为：按中心价排序，相邻中心距 <= tol 的归为一簇；
+    簇内以强度为权重求加权中心，边界取并集，强度累加，
+    并记录参与共振的周期数（tf_count）——多周期共振本身就是有用的信号。
+    """
+    if not items:
+        return []
+    items = sorted(items, key=lambda x: x[0])
+
+    clusters: List[List[Tuple[float, float, float, float, str]]] = [[items[0]]]
+    for it in items[1:]:
+        if it[0] - clusters[-1][-1][0] <= tol:
+            clusters[-1].append(it)
+        else:
+            clusters.append([it])
+
+    out: List[ZoneInfo] = []
+    for cl in clusters:
+        wsum = sum(x[3] for x in cl)
+        if wsum <= 0:
+            ctr = float(np.mean([x[0] for x in cl]))
+        else:
+            ctr = float(sum(x[0] * x[3] for x in cl) / wsum)
+        lo = float(min(x[1] for x in cl))
+        hi = float(max(x[2] for x in cl))
+        tfs = sorted({x[4] for x in cl})
+        dist_pct = (ctr - current_price) / current_price * 100 if current_price else 0.0
+        out.append(ZoneInfo(
             center=round(ctr, 5), low=round(lo, 5), high=round(hi, 5),
-            strength=round(w_str / divisor, 4),
+            strength=round(wsum / divisor, 4),
             zone_type="support" if dist_pct < 0 else "resistance",
             distance_pct=round(dist_pct, 2),
+            tf_count=len(tfs), tfs="+".join(tfs),
         ))
-    result["combined"] = combined
-
-    return result
+    # 共振周期多的优先，其次按强度
+    out.sort(key=lambda z: (-z.tf_count, -z.strength))
+    return out[:n_zones]
 
 
 def calc_risk_reward(
