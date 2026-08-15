@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>支撑/阻力位智能检测 · 期货本地数据</title>
+<title>密位 · DENSITY SR — 支撑阻力双概率</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700;9..144,900&family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -46,6 +46,49 @@
     background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   .wrap{position:relative;z-index:1;max-width:1340px;margin:0 auto;padding:32px 28px 80px}
+
+  /* ---- 排序档徽标（替代原 0-100 综合评分表盘）---- */
+  .bucket-box{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none}
+  .bucket-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:62px;height:62px;border-radius:16px;
+    font-family:var(--font-mono);font-size:24px;font-weight:700;
+    background:var(--panel-2);border:1px solid var(--border-strong);color:var(--text-dim);
+  }
+  .bucket-badge.sm{min-width:34px;height:24px;border-radius:7px;font-size:12px}
+  .bucket-badge.q1{color:#f87171;border-color:rgba(248,113,113,.45);background:rgba(248,113,113,.10)}
+  .bucket-badge.q2{color:#fb923c;border-color:rgba(251,146,60,.45);background:rgba(251,146,60,.10)}
+  .bucket-badge.q3{color:#fbbf24;border-color:rgba(251,191,36,.45);background:rgba(251,191,36,.10)}
+  .bucket-badge.q4{color:#a3e635;border-color:rgba(163,230,53,.45);background:rgba(163,230,53,.10)}
+  .bucket-badge.q5{color:#4ade80;border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.12)}
+  .bucket-cap{font-size:10.5px;color:var(--text-faint);letter-spacing:.1em}
+  .bucket-evidence{
+    margin-top:10px;padding:9px 11px;border-radius:9px;font-size:12px;line-height:1.6;
+    background:rgba(227,176,102,.07);border:1px solid rgba(227,176,102,.20);color:var(--text-dim);
+  }
+  .bucket-evidence b{color:var(--gold)}
+  .bucket-evidence code{font-family:var(--font-mono);font-size:11px;color:var(--gold)}
+  .tag.reso{background:rgba(227,176,102,.14);color:var(--gold);border:1px solid rgba(227,176,102,.3)}
+  .adj-warn{ display:none }
+  .unadj{ display:none }
+  .table-note{margin-top:10px;font-size:11.5px;line-height:1.7;color:var(--text-faint)}
+  .table-note b{color:var(--text-dim)}
+  .caveat-box .cv-main{font-size:13px;line-height:1.8;color:var(--text-dim)}
+  .caveat-box .cv-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:10px;margin:14px 0;
+  }
+  .caveat-box .cv-grid>div{
+    display:flex;flex-direction:column;gap:3px;padding:9px 11px;
+    background:var(--panel);border:1px solid var(--border);border-radius:9px;
+  }
+  .caveat-box .cl{font-size:10.5px;color:var(--text-faint);letter-spacing:.08em}
+  .caveat-box .cv{font-family:var(--font-mono);font-size:12.5px;color:var(--text)}
+  .caveat-box .cv-verify{font-size:12px;color:var(--text-faint);line-height:1.9}
+  .caveat-box code{
+    font-family:var(--font-mono);font-size:11.5px;padding:2px 6px;border-radius:5px;
+    background:rgba(255,255,255,.05);color:var(--gold);
+  }
 
   header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:34px;flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:14px}
@@ -243,6 +286,95 @@
     font-family:var(--font-mono);font-size:28px;font-weight:600;color:var(--gold);letter-spacing:.5px}
   .modal-note{font-size:14.5px;color:#c0bcb4!important;margin-top:18px!important}
   .modal-card .btn.primary{margin-top:16px;width:100%;justify-content:center}
+
+  /* ===== Quant terminal visual system ===== */
+  :root{
+    --bg:#05090f; --bg-2:#07111a;
+    --panel:rgba(8,20,30,.82); --panel-2:rgba(10,28,40,.9);
+    --border:rgba(91,203,255,.12); --border-strong:rgba(91,203,255,.24);
+    --text:#e8f7ff; --text-dim:#8da9b8; --text-faint:#557080;
+    --gold:#38d7ff; --gold-dim:rgba(56,215,255,.13);
+    --support:#39f5a6; --support-bg:rgba(57,245,166,.11);
+    --resistance:#ff5f7e; --resistance-bg:rgba(255,95,126,.11);
+    --warn:#ffd166; --font-display:'JetBrains Mono',ui-monospace,monospace;
+    --font-ui:'Hanken Grotesk','Microsoft YaHei',system-ui,sans-serif;
+  }
+  body{
+    background:
+      radial-gradient(900px 540px at 12% -5%,rgba(34,211,238,.10),transparent 62%),
+      radial-gradient(700px 500px at 92% 2%,rgba(57,245,166,.07),transparent 58%),
+      linear-gradient(145deg,#04080d 0%,#07111a 54%,#04090e 100%);
+  }
+  body::before{
+    background-image:
+      linear-gradient(rgba(56,215,255,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(56,215,255,.025) 1px,transparent 1px);
+    background-size:40px 40px;
+  }
+  body::after{opacity:.18}
+  .wrap{max-width:1480px;padding-top:22px}
+  header{margin-bottom:18px}
+  .brand-text h1{font-size:24px;letter-spacing:.02em}
+  .brand-text h1 em{color:var(--gold);font-weight:700}
+  .brand-text p{color:#668797;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em}
+  .mark{width:46px;height:46px;padding:7px;border:1px solid var(--border-strong);
+    background:linear-gradient(145deg,rgba(56,215,255,.10),rgba(57,245,166,.04));
+    border-radius:10px;box-shadow:inset 0 0 24px rgba(56,215,255,.06),0 0 28px rgba(56,215,255,.06)}
+  .mark svg{filter:hue-rotate(145deg) saturate(1.5)}
+  .pill{border-radius:7px;background:rgba(6,18,27,.75);font-size:11px}
+  .hero,.card,.chart-card,.table-card{
+    border-radius:10px;border-color:var(--border);
+    background:linear-gradient(150deg,rgba(9,24,35,.9),rgba(6,15,23,.86));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 12px 40px rgba(0,0,0,.14);
+  }
+  .hero{padding:18px 20px;margin-bottom:14px;backdrop-filter:blur(12px)}
+  .hero::before{left:0;right:65%;background:linear-gradient(90deg,var(--gold),transparent);opacity:.85}
+  .field label,.card .k,thead th{font-family:var(--font-mono);letter-spacing:.09em}
+  input[type=text],select{border-radius:7px;background:#050c13;border-color:var(--border-strong)}
+  input[type=text]:focus,select:focus{box-shadow:0 0 0 2px var(--gold-dim),0 0 22px rgba(56,215,255,.08)}
+  .btn{border-radius:7px;font-family:var(--font-mono);font-size:12px;letter-spacing:.02em}
+  .btn.primary{color:#001219;background:linear-gradient(135deg,#6ce5ff,#24c7ea);
+    box-shadow:0 7px 22px rgba(36,199,234,.20)}
+  .btn.primary:hover{box-shadow:0 9px 28px rgba(36,199,234,.30)}
+  #analyzeAllBtn{background:linear-gradient(135deg,#57f2b4,#22d98c)!important;color:#002216!important}
+  .terminal-strip{display:grid;grid-template-columns:1.5fr repeat(3,minmax(110px,.55fr));gap:1px;
+    margin-bottom:14px;border:1px solid var(--border);background:var(--border);border-radius:9px;overflow:hidden}
+  .terminal-cell{min-height:68px;padding:12px 16px;background:rgba(5,14,22,.93);
+    display:flex;flex-direction:column;justify-content:center;gap:3px}
+  .terminal-cell .label{font:9px var(--font-mono);letter-spacing:.16em;color:var(--text-faint)}
+  .terminal-cell .value{font:600 15px var(--font-mono);color:var(--text)}
+  .terminal-cell .value.accent{color:var(--gold)}
+  .terminal-cell .formula{font:11px var(--font-mono);color:#6b8a98}
+  .formula-main{font:500 14px var(--font-mono)!important;color:#9fbed0!important}
+  .formula-main b{color:var(--gold);font-weight:600}
+  .scan-toolbar{display:flex;gap:10px;align-items:center;padding:11px 12px;
+    border-bottom:1px solid var(--border);background:rgba(5,14,22,.7);flex-wrap:wrap}
+  .scan-search{min-width:210px;flex:1;max-width:360px;padding:8px 11px!important;font-size:12px!important}
+  .scan-toolbar .spacer{flex:1}
+  .pager{display:flex;align-items:center;gap:8px;font:11px var(--font-mono);color:var(--text-dim)}
+  .pager button{width:30px;height:28px;border-radius:5px;border:1px solid var(--border-strong);
+    color:var(--text-dim);background:#07121b;cursor:pointer}
+  .pager button:hover:not(:disabled){color:var(--gold);border-color:var(--gold)}
+  .pager button:disabled{opacity:.35;cursor:default}
+  .page-size{padding:6px 27px 6px 8px!important;font-size:11px!important}
+  .table-scroll{max-height:600px;contain:layout paint}
+  table{font-size:12px}
+  thead th{background:#091722;color:#668797}
+  tbody tr{content-visibility:auto;contain-intrinsic-size:39px}
+  tbody tr:hover{background:rgba(56,215,255,.055)}
+  .summary-head h2,.section-head h2,.chart-title h3{font-family:var(--font-mono);font-weight:600}
+  .summary-head h2::after{content:' / MATRIX';font-size:10px;color:var(--gold);letter-spacing:.12em}
+  .score-cell{padding:10px;border:1px solid var(--border);border-radius:7px;background:rgba(4,13,20,.48)}
+  .score-cell .v{font-size:18px}
+  .chart-card{content-visibility:auto;contain-intrinsic-size:500px}
+  .state .big{font-family:var(--font-mono);font-size:34px}
+  .state .sub{font-family:var(--font-mono);font-size:11px}
+  @media(max-width:760px){
+    .terminal-strip{grid-template-columns:1fr 1fr}
+    .terminal-cell:first-child{grid-column:1/-1}
+    .wrap{padding:16px 12px 50px}
+    .score-grid{grid-template-columns:1fr 1fr}
+  }
 </style>
 </head>
 <body>
@@ -260,8 +392,8 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>DENSITY<em>·</em>支撑阻力</h1>
-        <p>期货本地数据 · 支撑阻力位识别引擎</p>
+        <h1>密位<em>·</em>DENSITY</h1>
+        <p>支撑阻力 · 触及 × 守住</p>
       </div>
     </div>
     <div class="head-meta">
@@ -269,11 +401,21 @@
     </div>
   </header>
 
+  <div class="terminal-strip">
+    <div class="terminal-cell">
+      <span class="label">有效概率 · 怎么算</span>
+      <span class="formula formula-main"><b>有效</b> = 触及概率 × 守住概率</span>
+    </div>
+    <div class="terminal-cell"><span class="label">识别引擎</span><span class="value accent">V3 融合</span><span class="formula">密度 · 枢轴 · ATR</span></div>
+    <div class="terminal-cell"><span class="label">前瞻窗口</span><span class="value">未来 40 根</span><span class="formula">概率预测时长</span></div>
+    <div class="terminal-cell"><span class="label">模型状态</span><span class="value" style="color:var(--support)">● 已校准</span><span class="formula">走查回测验证</span></div>
+  </div>
+
   <!-- ===== Data dir hero ===== -->
   <div class="hero">
     <div class="hero-row">
       <div class="field dir">
-        <label>数据文件夹（含 *_*.parquet 或 *主连_*.parquet）</label>
+        <label>LOCAL MARKET DATA / PARQUET ROOT</label>
         <input type="text" id="dirInput" placeholder="例如 D:\MT5_K线数据" value="">
       </div>
       <button class="btn secondary" id="browseDirBtn">点击选择数据文件夹</button>
@@ -289,15 +431,15 @@
   <div class="hero" id="analyzeHero" style="display:none">
     <div class="hero-row">
       <div class="field sel">
-        <label>品种</label>
+        <label>SYMBOL / 标的</label>
         <select id="symbolSel"><option value="">— 选择品种 —</option></select>
       </div>
       <div class="field sel">
-        <label>周期</label>
+        <label>TIMEFRAME / 周期</label>
         <select id="tfSel"></select>
       </div>
       <div class="field sel">
-        <label>分析窗口 (K线数)</label>
+        <label>LOOKBACK / K线</label>
         <select id="windowSel">
           <option value="20">20</option>
           <option value="40" selected>40</option>
@@ -308,7 +450,7 @@
         </select>
       </div>
       <div class="field sel">
-        <label>关键位数量</label>
+        <label>LEVEL COUNT</label>
         <select id="zonesSel">
           <option value="2">2</option>
           <option value="3" selected>3</option>
@@ -317,15 +459,15 @@
         </select>
       </div>
       <div class="field sel">
-        <label>交易方向</label>
+        <label>DIRECTION / 方向</label>
         <select id="dirSel">
           <option value="long" selected>只做多</option>
           <option value="short">只做空</option>
           <option value="both">多空都做</option>
         </select>
       </div>
-      <label class="toggle">
-        <input type="checkbox" id="mtfChk" checked>
+      <label class="toggle" style="display:none">
+        <input type="checkbox" id="mtfChk">
         <span class="track"></span>
         <span style="font-size:12.5px;color:var(--text-dim)">多时间框架</span>
       </label>
@@ -355,11 +497,28 @@
       <span class="summary-meta" id="summaryMeta"></span>
     </div>
     <div class="table-card">
+      <div class="scan-toolbar">
+        <input class="scan-search" id="scanSearch" type="text" placeholder="筛选代码 / 趋势 / 方向…">
+        <span class="summary-meta" id="visibleMeta"></span>
+        <span class="spacer"></span>
+        <label class="pager">每页
+          <select class="page-size" id="pageSize">
+            <option value="50">50</option><option value="100" selected>100</option><option value="200">200</option>
+          </select>
+        </label>
+        <div class="pager">
+          <button id="prevPage" type="button" aria-label="上一页">‹</button>
+          <span id="pageMeta">1 / 1</span>
+          <button id="nextPage" type="button" aria-label="下一页">›</button>
+        </div>
+      </div>
       <div class="table-scroll">
         <table id="summaryTable">
           <thead><tr>
             <th>#</th><th>品种</th><th>现价</th><th>涨跌%</th>
-            <th>综合评分</th><th>评级</th><th>趋势</th><th>守住率</th><th>距离%</th>
+            <th title="未来40个交易日内价格走到该位的概率">触及概率</th>
+            <th title="走到后反弹而非跌穿的概率">守住概率</th>
+            <th>历史被测试</th><th>趋势</th><th>距离</th>
             <th>最近支撑</th><th>最近压力</th><th>关键位</th>
           </tr></thead>
           <tbody></tbody>
@@ -380,16 +539,15 @@
         <div class="meta-line" id="sMeta"></div>
       </div>
       <div class="card risk-card">
-        <div class="k">综合评估 · <span id="gDir" style="color:var(--gold)">只做多</span></div>
+        <div class="k">最近关键位 · <span id="gDir" style="color:var(--gold)">只做多</span></div>
         <div class="risk-top">
-          <div class="gauge"><svg viewBox="0 0 120 68" id="gaugeSvg"></svg><div class="val" id="gVal">0</div></div>
-          <div><div class="level-badge" id="gLevel">—</div><div class="risk-summary" id="gSummary" style="margin-top:8px"></div></div>
+          <div><div class="risk-summary" id="gSummary"></div></div>
         </div>
         <div class="score-grid">
-          <div class="score-cell"><div class="v" id="sDist">—</div><div class="l">距离 20%</div><div class="bar"><i id="bDist"></i></div></div>
-          <div class="score-cell"><div class="v" id="sRate">—</div><div class="l">守住率 40%</div><div class="bar"><i id="bRate"></i></div></div>
-          <div class="score-cell"><div class="v" id="sStr">—</div><div class="l">强度 20%</div><div class="bar"><i id="bStr"></i></div></div>
-          <div class="score-cell"><div class="v" id="sTrend">—</div><div class="l">趋势 20%</div><div class="bar"><i id="bTrend"></i></div></div>
+          <div class="score-cell"><div class="v" id="sPTouch">—</div><div class="l">触及概率</div></div>
+          <div class="score-cell"><div class="v" id="sPHold">—</div><div class="l">守住概率</div></div>
+          <div class="score-cell"><div class="v" id="sEvents">—</div><div class="l">历史被测试</div></div>
+          <div class="score-cell"><div class="v" id="sTrend">—</div><div class="l">趋势</div></div>
         </div>
         <div class="trend-detail" id="trendDetail"></div>
       </div>
@@ -398,7 +556,7 @@
         <div class="stat-row"><span class="sl">最近支撑</span><span class="sv s" id="kSupport">—</span></div>
         <div class="stat-row"><span class="sl">最近压力</span><span class="sv r" id="kResist">—</span></div>
         <div class="stat-row"><span class="sl">关键位数</span><span class="sv" id="kZones">—</span></div>
-        <div class="stat-row"><span class="sl">数据样本</span><span class="sv" id="kBars">—</span></div>
+        <div class="stat-row"><span class="sl">ATR / 价格</span><span class="sv" id="kAtr">—</span></div>
       </div>
     </div>
 
@@ -416,19 +574,25 @@
       <div id="mainChart"></div>
     </div>
 
-    <div class="section-head"><span class="num">01</span><h2>支撑/阻力位列表</h2><span class="line"></span></div>
+    <div class="section-head"><span class="num">01</span><h2>支撑/阻力带列表</h2><span class="line"></span></div>
     <div class="chart-card">
       <table class="detail" id="zoneTable">
         <thead><tr>
-          <th>类型</th><th>中心价</th><th>区间</th><th>强度</th>
-          <th>距现价</th><th>重叠K线</th><th>成交占比</th>
+          <th>类型</th><th>中心价</th><th>价格带</th><th>带宽</th>
+          <th>距现价</th>
+          <th title="未来40个交易日内，价格走到这个位的概率">触及概率</th>
+          <th title="价格走到这个位后反弹（而非跌穿）的概率">守住概率</th>
+          <th>历史被测试</th>
         </tr></thead>
         <tbody></tbody>
       </table>
+      <div class="table-note" id="zoneNote"></div>
     </div>
 
-    <div class="section-head"><span class="num">02</span><h2>历史有效性预警</h2><span class="line"></span></div>
-    <div class="alerts-grid" id="alertsGrid"></div>
+    <div class="section-head"><span class="num">02</span><h2>口径说明 · 如何验证</h2><span class="line"></span></div>
+    <div class="chart-card">
+      <div class="caveat-box" id="caveatBox"></div>
+    </div>
 
     <div class="disclaimer">
       ⚠ 以上内容基于本地历史行情数据由算法自动生成，仅供技术分析参考，不构成任何投资建议。市场有风险，决策需谨慎。
@@ -470,6 +634,8 @@ let instruments = [];        // [{symbol, timeframes:[]}]
 let tfLabels = {};
 let allRows = [];            // analyze_all 结果
 let currentSymbol = null;
+let scanPage = 1;
+let scanSummary = null;
 
 /* ---------- Load instruments from a given path ---------- */
 function loadDataDir(path){
@@ -600,6 +766,7 @@ $('#analyzeAllBtn').addEventListener('click', () => {
     stopLoading();
     if (d.error) { showError(d.error); return; }
     allRows = d.rows;
+    scanPage = 1;
     renderSummary(d);
   }).catch(e => { stopLoading(); showError('请求失败：'+e.message); });
 });
@@ -634,51 +801,81 @@ function showError(msg){
 
 /* ---------- Summary render ---------- */
 function renderSummary(d){
-  const s = d.summary;
-  $('#summaryMeta').textContent = `${s.tf_label} · ${s.direction_label||''} · 窗口 ${s.window} · 成功 ${s.analyzed}/${s.total}` + (s.failed?` · 失败 ${s.failed}`:'');
+  scanSummary = d.summary;
+  const s = scanSummary;
+  let meta = `${s.tf_label} · ${s.direction_label||''} · 成功 ${s.analyzed}/${s.total}`
+    + (s.failed?` · 失败 ${s.failed}`:'');
+  $('#summaryMeta').textContent = meta;
+  renderSummaryPage();
+  $('#summaryWrap').style.display = 'block';
+}
+
+function getFilteredRows(){
+  const q = ($('#scanSearch').value || '').trim().toLowerCase();
+  if (!q) return allRows;
+  return allRows.filter(r =>
+    String(r.symbol||'').toLowerCase().includes(q) ||
+    String(r.trend_label||'').toLowerCase().includes(q) ||
+    String(r.direction||'').toLowerCase().includes(q)
+  );
+}
+
+function renderSummaryPage(){
   const tb = $('#summaryTable tbody');
-  const LEVEL_TXT = {buy:'🟢 可关注', hold:'🟡 观望', sell:'🔴 回避'};
-  if (!d.rows.length){ tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-faint);padding:20px">无有效结果</td></tr>'; }
+  const rows = getFilteredRows();
+  const pageSize = Number($('#pageSize').value) || 100;
+  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
+  scanPage = Math.max(1, Math.min(scanPage, pages));
+  const start = (scanPage - 1) * pageSize;
+  const visible = rows.slice(start, start + pageSize);
+  $('#visibleMeta').textContent = `显示 ${rows.length ? start+1 : 0}–${Math.min(start+pageSize,rows.length)} / ${rows.length}`;
+  $('#pageMeta').textContent = `${scanPage} / ${pages}`;
+  $('#prevPage').disabled = scanPage <= 1;
+  $('#nextPage').disabled = scanPage >= pages;
+
+  if (!visible.length){ tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-faint);padding:20px">无匹配结果</td></tr>'; }
   else {
-    tb.innerHTML = d.rows.map((r,i) => {
+    tb.innerHTML = visible.map((r,i) => {
       const chgCls = r.change_pct >= 0 ? 'up' : 'down';
       const chgTxt = (r.change_pct>=0?'+':'') + fmt(r.change_pct) + '%';
-      const lv = r.level || 'hold';
-      const lvCls = lv;
       const trendTxt = r.trend_label || '—';
       const trendColor = trendTxt==='上涨'?'var(--support)':trendTxt==='下跌'?'var(--resistance)':'var(--text-dim)';
-      const rateTxt = r.success_rate>0 ? r.success_rate+'%' : '—';
-      const distTxt = r.nearest_distance_pct!=null ? fmt(Math.abs(r.nearest_distance_pct))+'%' : '—';
+      const distTxt = r.nearest_distance_atr!=null
+        ? fmt(Math.abs(r.nearest_distance_atr))+' ATR' : '—';
       return `<tr data-symbol="${r.symbol}">
-        <td class="num" style="color:var(--text-faint)">${i+1}</td>
+        <td class="num" style="color:var(--text-faint)">${start+i+1}</td>
         <td><b>${r.symbol}</b></td>
         <td class="num">${fmtPrice(r.current_price)}</td>
         <td class="num chg ${chgCls}">${chgTxt}</td>
-        <td class="num" style="color:var(--gold);font-weight:600">${r.overall_score}</td>
-        <td><span class="level-badge ${lvCls}" style="font-size:11px">${LEVEL_TXT[lv]||'—'}</span></td>
+        <td class="num">${probCell(r.p_touch)}</td>
+        <td class="num">${probCell(r.p_hold)}</td>
+        <td class="num">${r.n_events!=null?r.n_events+' 次':'—'}</td>
         <td class="num" style="color:${trendColor}">${trendTxt}</td>
-        <td class="num">${rateTxt}</td>
         <td class="num">${distTxt}</td>
         <td class="num s" style="color:var(--support)">${r.nearest_support!=null?fmtPrice(r.nearest_support):'—'}</td>
         <td class="num r" style="color:var(--resistance)">${r.nearest_resistance!=null?fmtPrice(r.nearest_resistance):'—'}</td>
         <td class="num">${r.n_zones}</td>
       </tr>`;
     }).join('');
-    // row click → analyze detail
-    tb.querySelectorAll('tr').forEach(tr => {
-      tr.addEventListener('click', () => {
-        const sym = tr.dataset.symbol;
-        $('#symbolSel').value = sym;
-        $('#symbolSel').dispatchEvent(new Event('change'));
-        $('#analyzeBtn').click();
-        tb.querySelectorAll('tr').forEach(x => x.classList.remove('active'));
-        tr.classList.add('active');
-        window.scrollTo({top: $('#detailWrap').offsetTop - 20, behavior:'smooth'});
-      });
-    });
   }
-  $('#summaryWrap').style.display = 'block';
 }
+
+// 批量表格最多只渲染当前页，并使用事件委托：即使扫描数千品种，
+// DOM 节点与事件监听器也保持常数级，避免扫描完成后页面卡顿。
+$('#scanSearch').addEventListener('input', () => { scanPage = 1; renderSummaryPage(); });
+$('#pageSize').addEventListener('change', () => { scanPage = 1; renderSummaryPage(); });
+$('#prevPage').addEventListener('click', () => { scanPage--; renderSummaryPage(); });
+$('#nextPage').addEventListener('click', () => { scanPage++; renderSummaryPage(); });
+$('#summaryTable tbody').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-symbol]');
+  if (!tr) return;
+  const sym = tr.dataset.symbol;
+  $('#symbolSel').value = sym;
+  $('#symbolSel').dispatchEvent(new Event('change'));
+  $('#analyzeBtn').click();
+  $('#summaryTable tbody').querySelectorAll('tr').forEach(x => x.classList.remove('active'));
+  tr.classList.add('active');
+});
 
 /* ---------- Detail render ---------- */
 function renderDetail(d){
@@ -690,62 +887,41 @@ function renderDetail(d){
   const chg = $('#sChg'); const cp = d.change_pct;
   chg.textContent = (cp>=0?'+':'') + fmt(cp) + '%';
   chg.className = 'chg-badge ' + (cp>=0?'up':'down');
-  $('#sMeta').textContent = `窗口 ${d.window} · 关键位 ${d.n_zones} · 样本 ${d.data_bars} 条`;
+  $('#sMeta').textContent = `关键位 ${d.n_zones} · 样本 ${d.data_bars} 条`;
   $('#chartHint').textContent = `${d.stock_name} · ${d.tf_label||d.tf} · 现价 ${fmtPrice(d.current_price)}`;
 
-  renderGauge(d.risk_score.overall_score);
-  const lv = d.risk_score.level;
-  const lvEl = $('#gLevel');
-  lvEl.textContent = d.risk_score.level_label.replace(/[🟢🟡🔴 ]/g,'').trim();
-  lvEl.className = 'level-badge ' + lv;
-  $('#gSummary').textContent = d.risk_score.summary;
-  $('#gDir').textContent = d.risk_score.direction_label || '只做多';
+  const sm = d.summary || {};
+  const eng = d.engine || {};
+  const nz = sm.nearest;
 
-  // 四项分项得分
-  const sc = d.risk_score.scores || {};
-  const setScore = (id, barId, val) => {
-    $('#'+id).textContent = val!=null ? val : '—';
-    $('#'+barId).style.width = Math.max(0, Math.min(100, val||0)) + '%';
+  $('#gSummary').textContent = sm.headline || '';
+  $('#gDir').textContent = sm.direction_label || '只做多';
+
+  const setProb = (id, p) => {
+    const el = $('#'+id);
+    if (p==null){ el.textContent = '—'; el.style.color=''; return; }
+    const v = p*100;
+    el.textContent = v.toFixed(0) + '%';
+    el.style.color = v>=75 ? 'var(--support)' : v>=55 ? 'var(--warn)' : 'var(--resistance)';
   };
-  setScore('sDist', 'bDist', sc.distance);
-  setScore('sRate', 'bRate', sc.success_rate);
-  setScore('sStr', 'bStr', sc.strength);
-  setScore('sTrend', 'bTrend', sc.trend);
-  $('#trendDetail').textContent = d.risk_score.trend_detail || '';
+  setProb('sPTouch', nz ? nz.p_touch : null);
+  setProb('sPHold',  nz ? nz.p_hold  : null);
+  $('#sEvents').textContent = nz ? nz.n_events + ' 次' : '—';
+  $('#sTrend').textContent  = sm.trend_label || '—';
+  $('#trendDetail').textContent = sm.trend_detail || '';
 
-  // 最近支撑/压力从 zones 计算
   const sups = d.zones.filter(z => z.zone_type==='support');
   const ress = d.zones.filter(z => z.zone_type==='resistance');
-  const ns = sups.length ? sups.reduce((a,b)=>Math.abs(a.distance_pct)<Math.abs(b.distance_pct)?a:b) : null;
-  const nr = ress.length ? ress.reduce((a,b)=>Math.abs(a.distance_pct)<Math.abs(b.distance_pct)?a:b) : null;
+  const pickNear = arr => arr.length ? arr.reduce((a,b)=>Math.abs(a.distance_atr)<Math.abs(b.distance_atr)?a:b) : null;
+  const ns = pickNear(sups), nr = pickNear(ress);
   $('#kSupport').textContent = ns ? fmtPrice(ns.center) : '—';
   $('#kResist').textContent = nr ? fmtPrice(nr.center) : '—';
   $('#kZones').textContent = d.zones.length + ' 个';
-  $('#kBars').textContent = d.data_bars + ' 条';
+  $('#kAtr').textContent = eng.atr_pct != null ? fmt(eng.atr_pct)+'%' : '—';
 
   drawMainChart(d);
-  renderZoneTable(d.zones); renderAlerts(d.alerts);
-}
-
-function renderGauge(score){
-  score = Math.max(0, Math.min(100, score||0));
-  $('#gVal').textContent = Math.round(score);
-  const svg = $('#gaugeSvg');
-  const a = Math.PI - (score/100)*Math.PI;
-  const r=52, cx=60, cy=60;
-  const x=cx+r*Math.cos(a), y=cy-r*Math.sin(a);
-  const color = score>=70?'#4ade80':score>=40?'#fbbf24':'#f87171';
-  const bg = describeArc(cx,cy,r,180,0);
-  const fg = describeArc(cx,cy,r,180,180-(score/100)*180);
-  svg.innerHTML = `<path d="${bg}" stroke="rgba(255,255,255,0.08)" stroke-width="7" fill="none" stroke-linecap="round"/>
-    <path d="${fg}" stroke="${color}" stroke-width="7" fill="none" stroke-linecap="round" style="transition:all .8s ease"/>
-    <circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`;
-}
-function polar(cx,cy,r,deg){const a=deg*Math.PI/180;return [cx+r*Math.cos(a), cy-r*Math.sin(a)];}
-function describeArc(cx,cy,r,startDeg,endDeg){
-  const [x1,y1]=polar(cx,cy,r,startDeg), [x2,y2]=polar(cx,cy,r,endDeg);
-  const large = Math.abs(endDeg-startDeg)<=180?0:1;
-  return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+  renderZoneTable(d.zones, eng);
+  renderCaveat(sm, eng);
 }
 
 // 多周期关键位颜色映射（周期 -> 背景色/边框色）
@@ -834,37 +1010,58 @@ function calcEMA(values, period){
   return out;
 }
 
-function renderZoneTable(zones){
+/* 概率 -> 颜色（低红 中黄 高绿），用于两个概率列 */
+function probCell(p){
+  if (p==null) return '<span style="color:var(--text-faint)">—</span>';
+  const v = p*100;
+  const c = v>=75 ? 'var(--support)' : v>=55 ? 'var(--warn)' : 'var(--resistance)';
+  return `<span style="color:${c};font-weight:600;font-family:var(--font-mono)">${v.toFixed(0)}%</span>`;
+}
+
+function renderZoneTable(zones, eng){
   const tb = $('#zoneTable tbody');
-  const maxStr = Math.max(...zones.map(x=>x.strength), 0.0001);
   tb.innerHTML = zones.map(z=>{
     const isS = z.zone_type==='support';
-    const w = Math.round(z.strength/maxStr*100);
+    const col = isS?'var(--support)':'var(--resistance)';
     return `<tr>
       <td><span class="tag ${z.zone_type}">${isS?'支撑':'压力'}</span></td>
       <td class="num">${fmtPrice(z.center)}</td>
       <td class="num" style="color:var(--text-dim)">${fmtPrice(z.low)} ~ ${fmtPrice(z.high)}</td>
-      <td><div class="bar"><i class="${isS?'s':'r'}" style="width:${w}%"></i></div></td>
-      <td class="num" style="color:${isS?'var(--support)':'var(--resistance)'}">${z.distance_pct>0?'+':''}${fmt(z.distance_pct)}%</td>
-      <td class="num">${z.touch_count}</td>
-      <td class="num">${fmt(z.volume_pct,1)}%</td>
+      <td class="num">${fmt(z.width_atr)} ATR</td>
+      <td class="num" style="color:${col}">${z.distance_pct>0?'+':''}${fmt(z.distance_pct)}%<span style="color:var(--text-faint)"> / ${z.distance_atr>0?'+':''}${fmt(z.distance_atr)}A</span></td>
+      <td class="num">${probCell(z.p_touch)}</td>
+      <td class="num">${probCell(z.p_hold)}</td>
+      <td class="num"><b>${z.n_events}</b> 次</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:20px">无关键位</td></tr>';
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:20px">距离带内无关键位</td></tr>';
+
+  const pm = (eng && eng.prob_meta) || {};
+  let note =
+    `<b>触及概率</b>：未来 40 个交易日内价格走到这个位的可能性（区分度强，AUC 0.73~0.77）。`
+    + ` <b>守住概率</b>：走到后反弹而非跌穿的可能性 —— 区分度弱（AUC 0.59~0.61）但校准良好，`
+    + `模型说 75% 的那批历史上确实 75.4% 守住，所以绝对值可信，但不宜用来比较两个相邻的位。`
+    + ` 只输出距现价 0.5~5.0 ATR 的关键位；带宽在 0.3~1.2 ATR 之间。`;
+  if (eng && eng.prob_ready === false){
+    note = `⚠ 概率模型未就绪，请运行 <code>python scripts/train_probability.py out/final</code>。` + note;
+  }
+  $('#zoneNote').innerHTML = note;
 }
 
-function renderAlerts(alerts){
-  const g = $('#alertsGrid');
-  if (!alerts.length){ g.innerHTML = '<div class="state"><div class="sub">暂无预警数据</div></div>'; return; }
-  const order = {danger:0,warning:1,normal:2};
-  alerts = [...alerts].sort((a,b)=>order[a.alert_level]-order[b.alert_level]);
-  g.innerHTML = alerts.map(a=>`<div class="alert ${a.alert_level}">
-    <div class="alert-top"><span class="lbl">${a.zone_label}</span><span class="lvl">${a.alert_text}</span></div>
-    <div class="center">${fmtPrice(a.zone_center)}</div>
-    <div class="pbar"><i style="width:${a.progress}%"></i></div>
-    <div class="dist"><span>距现价</span><span>${fmt(a.distance_pct)}% · ${fmtPrice(a.distance_price)}</span></div>
-    <div class="advice">${a.advice}</div>
-    <div class="hist">${a.history_label}</div>
-  </div>`).join('');
+function renderCaveat(sm, eng){
+  const box = $('#caveatBox');
+  const meta = eng.calib_meta || {};
+  const pmeta = eng.prob_meta || {};
+  box.innerHTML = `
+    <p class="cv-main">${sm.caveat || ''}</p>
+    <div class="cv-grid">
+      <div><span class="cl">ATR/价格</span><span class="cv">${eng.atr_pct!=null?fmt(eng.atr_pct)+'%':'—'}</span></div>
+      <div><span class="cl">概率模型</span><span class="cv">${eng.prob_ready?('已加载 · '+(pmeta.generated||'')):'未就绪'}</span></div>
+      <div><span class="cl">触及概率 AUC</span><span class="cv">0.77 支撑 / 0.73 压力</span></div>
+      <div><span class="cl">守住概率 AUC</span><span class="cv">0.59 支撑 / 0.61 压力</span></div>
+    </div>
+    <p class="cv-verify">自行验证：<code>python -m src.srlab.leakage</code>（防未来数据，7项）
+      · <code>python scripts/run_eval.py --n 200</code>（走查回测）
+      · <code>python scripts/factor_analysis.py out/final</code>（单因子有效性）</p>`;
 }
 
 /* ---------- auto load on start if default path set ---------- */
