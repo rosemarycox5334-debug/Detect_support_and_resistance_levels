@@ -305,14 +305,66 @@
       radial-gradient(700px 500px at 92% 2%,rgba(57,245,166,.07),transparent 58%),
       linear-gradient(145deg,#04080d 0%,#07111a 54%,#04090e 100%);
   }
-  body::before{
-    background-image:
-      linear-gradient(rgba(56,215,255,.025) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(56,215,255,.025) 1px,transparent 1px);
-    background-size:40px 40px;
+  body::before{display:none}
+  body::after{display:none}
+
+  /* ===== 动态背景层（参考 AlphaMaster）===== */
+  .bg-layers{
+    position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
   }
-  body::after{opacity:.18}
-  .wrap{max-width:1480px;padding-top:22px}
+  .bg-canvas{position:absolute;inset:0;width:100%;height:100%}
+  #glyphCanvas{z-index:1}
+  #neuralCanvas{z-index:2}
+  .bg-aurora{
+    position:absolute;inset:-20%;z-index:0;
+    background:
+      radial-gradient(closest-side,rgba(56,215,255,.18),transparent),
+      radial-gradient(closest-side,rgba(57,245,166,.14),transparent),
+      radial-gradient(closest-side,rgba(91,140,255,.14),transparent);
+    background-size:55% 55%,50% 50%,60% 60%;
+    background-position:12% 8%,88% 20%,50% 100%;
+    background-repeat:no-repeat;
+    filter:blur(42px);opacity:.78;
+    animation:auroraDrift 26s ease-in-out infinite alternate;
+  }
+  @keyframes auroraDrift{
+    0%{background-position:12% 8%,88% 20%,50% 100%}
+    50%{background-position:24% 22%,70% 8%,40% 86%}
+    100%{background-position:6% 16%,96% 30%,60% 94%}
+  }
+  .bg-grid{
+    position:absolute;inset:0;z-index:3;
+    background-image:
+      linear-gradient(rgba(56,215,255,.04) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(56,215,255,.04) 1px,transparent 1px);
+    background-size:42px 42px;
+    mask-image:radial-gradient(ellipse 90% 75% at 50% 0%,#000,transparent 85%);
+    -webkit-mask-image:radial-gradient(ellipse 90% 75% at 50% 0%,#000,transparent 85%);
+  }
+  .bg-scan{
+    position:absolute;inset:0;z-index:4;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.014) 0px,
+      rgba(255,255,255,.014) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    mix-blend-mode:overlay;opacity:.38;
+    animation:scanMove 8s linear infinite;
+  }
+  @keyframes scanMove{
+    0%{background-position:0 0}
+    100%{background-position:0 400px}
+  }
+  .bg-vignette{
+    position:absolute;inset:0;z-index:5;
+    background:radial-gradient(ellipse 100% 100% at 50% 40%,transparent 55%,rgba(3,6,12,.72) 100%);
+  }
+  @media (prefers-reduced-motion:reduce){
+    .bg-aurora,.bg-scan{animation:none}
+  }
+  .wrap{position:relative;z-index:1;max-width:1480px;padding-top:22px}
   header{margin-bottom:18px}
   .brand-text h1{font-size:24px;letter-spacing:.02em}
   .brand-text h1 em{color:var(--gold);font-weight:700}
@@ -378,6 +430,16 @@
 </style>
 </head>
 <body>
+<!-- 动态背景层 -->
+<div class="bg-layers" aria-hidden="true">
+  <div class="bg-aurora"></div>
+  <canvas id="glyphCanvas" class="bg-canvas"></canvas>
+  <canvas id="neuralCanvas" class="bg-canvas"></canvas>
+  <div class="bg-grid"></div>
+  <div class="bg-scan"></div>
+  <div class="bg-vignette"></div>
+</div>
+
 <div class="wrap">
 
   <header>
@@ -1074,6 +1136,7 @@ window.addEventListener('load', () => {
   }).catch(()=>{});
 });
 </script>
+<script src="/static/bg.js"></script>
 
 </body>
 </html>
