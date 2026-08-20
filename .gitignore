@@ -1,0 +1,16 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+.venv/
+venv/
+
+# 数据产物（不应进版本控制）
+out/final/
+out/eval*/
+out/prob_exp/
+
+# 日志/临时
+*.log
+*.tmp
