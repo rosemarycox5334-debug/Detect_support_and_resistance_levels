@@ -1,4 +1,4 @@
-# 密位 · DENSITY SR
+﻿# Density Levels · DENSITY SR
 
 **交流 QQ 群：922829084**
 
@@ -8,7 +8,17 @@
 
 `Detect_support_and_resistance_levels` 是一个本地化的技术分析工具，提供 Web UI 和 Python API，用于从 OHLCV K 线中识别支撑/阻力位，并给出每个关键位的历史统计置信度（触及概率 × 守住概率）。
 
-![DENSITY 主界面截图](out/ui_bg.png)
+![界面截图 1](png/1.png)
+
+![界面截图 2](png/2.png)
+
+![界面截图 3](png/3.png)
+
+![界面截图 4](png/4.png)
+
+![界面截图 5](png/5.png)
+
+![界面截图 6](png/6.png)
 
 ## 核心特性
 

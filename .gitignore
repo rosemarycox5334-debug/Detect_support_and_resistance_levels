@@ -14,3 +14,6 @@ out/prob_exp/
 # 日志/临时
 *.log
 *.tmp
+
+# Web 应用本地状态（数据文件夹路径记忆）
+.data_dir.txt

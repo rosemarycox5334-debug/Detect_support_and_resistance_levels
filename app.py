@@ -33,9 +33,21 @@ from src.sr_engine import (
 app = Flask(__name__)
 app.secret_key = "density-sr-local-futures"
 
-# 全局共享状态：当前选定的数据文件夹
+# 全局共享状态：当前选定的数据文件夹（持久化到本地文件，重启后自动恢复）
 _state_lock = threading.Lock()
-_state = {"data_dir": ""}
+_STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".data_dir.txt")
+
+
+def _load_saved_dir() -> str:
+    try:
+        with open(_STATE_FILE, "r", encoding="utf-8") as f:
+            path = f.read().strip()
+        return path if path and os.path.isdir(path) else ""
+    except OSError:
+        return ""
+
+
+_state = {"data_dir": _load_saved_dir()}
 
 
 def get_data_dir() -> str:
@@ -44,6 +56,11 @@ def get_data_dir() -> str:
 
 def set_data_dir(path: str):
     _state["data_dir"] = path
+    try:
+        with open(_STATE_FILE, "w", encoding="utf-8") as f:
+            f.write(path)
+    except OSError:
+        pass  # 持久化失败不影响本次会话
 
 
 _ENGINE = SREngine()
@@ -363,4 +380,12 @@ if __name__ == "__main__":
     print("  支撑/阻力位检测 Web 应用（本地数据版）")
     print("  访问: http://127.0.0.1:5000")
     print("=" * 60 + "\n")
+    # 过滤 werkzeug 开发服务器启动时的 WARNING 提示（本地使用无需理会）
+    import logging
+
+    class _SuppressDevWarning(logging.Filter):
+        def filter(self, record):
+            return "development server" not in record.getMessage()
+
+    logging.getLogger("werkzeug").addFilter(_SuppressDevWarning())
     app.run(host="127.0.0.1", port=5000, debug=True)
